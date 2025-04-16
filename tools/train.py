@@ -1,4 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+from __future__ import division
 import argparse
 import copy
 import importlib
@@ -8,7 +9,6 @@ import time
 import torch
 import torch.distributed as dist
 import warnings
-from __future__ import division
 from mmcv import Config, DictAction
 from mmcv.runner import get_dist_info, init_dist
 from mmdet import __version__ as mmdet_version
@@ -103,7 +103,7 @@ def main():
         cfg.gpu_ids = [args.gpu_id]
     if args.autoscale_lr:
         # 根据CUDA_VISIBLE_DEVICES和cfg.data.samples_per_gpu自动缩放学习率，默认8个GPU，4个样本/GPU
-        cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 4
+        cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 1
     if args.launcher == 'none':
         distributed = False
     else:
