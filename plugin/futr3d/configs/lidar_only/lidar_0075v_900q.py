@@ -1,7 +1,7 @@
 _base_ = [
-    '../../../configs/_base_/datasets/nus-3d.py',
-    '../../../configs/_base_/schedules/cyclic_20e.py', 
-    '../../../configs/_base_/default_runtime.py'
+    '../../../../configs/_base_/datasets/nus-3d.py',
+    '../../../../configs/_base_/schedules/cyclic_20e.py', 
+    '../../../../configs/_base_/default_runtime.py'
 ]
 
 plugin = 'plugin/futr3d'
@@ -254,6 +254,7 @@ test_pipeline = [
         file_client_args=file_client_args,
         pad_empty_sweeps=True,
         remove_close=True),
+    dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True),
     dict(
         type='MultiScaleFlipAug3D',
         img_scale=(1333, 800),
@@ -272,8 +273,8 @@ test_pipeline = [
                 type='DefaultFormatBundle3D',
                 class_names=class_names,
                 with_label=False),
-            dict(type='Collect3D', keys=['points'])
-        ])
+            dict(type='Collect3D', keys=['points', 'gt_bboxes_3d', 'gt_labels_3d'])
+        ]),
 ]
 # construct a pipeline for data and gt loading in show function
 # please keep its loading function consistent with test_pipeline (e.g. client)
@@ -299,6 +300,7 @@ eval_pipeline = [
 ]
 
 data = dict(
+    samples_per_gpu=4,
     train=dict(
         type='CBGSDataset',
         dataset=dict(
@@ -318,10 +320,10 @@ data = dict(
 # Since the models are trained by 24 epochs by default, we set evaluation
 # interval to be 24. Please change the interval accordingly if you do not
 # use a default schedule.
-evaluation = dict(interval=2)
+evaluation = dict(interval=1)
 
 find_unused_parameters=True
 
 custom_hooks = [dict(type='FadeOjectSampleHook', num_last_epochs=5)]
 
-checkpoint_config = dict(interval=1, max_keep_ckpts=1)
+checkpoint_config = dict(interval=1)

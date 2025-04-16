@@ -1,52 +1,26 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import argparse
-
 import torch
 from mmcv import Config, DictAction
-
 from mmdet3d.models import build_model
-
 try:
     from mmcv.cnn import get_model_complexity_info
 except ImportError:
-    raise ImportError('Please upgrade mmcv to >0.6.2')
-
+    raise ImportError('请升级mmcv到>0.6.2')
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Train a detector')
-    parser.add_argument('config', help='train config file path')
-    parser.add_argument(
-        '--shape',
-        type=int,
-        nargs='+',
-        default=[40000, 4],
-        help='input point cloud size')
-    parser.add_argument(
-        '--modality',
-        type=str,
-        default='point',
-        choices=['point', 'image', 'multi'],
-        help='input data modality')
-    parser.add_argument(
-        '--cfg-options',
-        nargs='+',
-        action=DictAction,
-        help='override some settings in the used config, the key-value pair '
-        'in xxx=yyy format will be merged into config file. If the value to '
-        'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
-        'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
-        'Note that the quotation marks are necessary and that no white space '
-        'is allowed.')
+    parser = argparse.ArgumentParser(description='训练检测器')
+    parser.add_argument('config', help='训练配置文件路径')
+    parser.add_argument('--shape', type=int, nargs='+', default=[40000, 4], help='输入点云大小')
+    parser.add_argument('--modality', type=str, default='point', choices=['point', 'image', 'multi'], help='输入数据模态')
+    parser.add_argument('--cfg-options', nargs='+', action=DictAction, help='覆盖配置文件中的一些设置,以xxx=yyy格式的键值对将被合并到配置文件中。如果要覆盖的值是列表,应该像key="[a,b]"或key=a,b。也允许嵌套的列表/元组值,例如key="[(a,b),(c,d)]"。注意引号是必需的,并且不允许有空格')
     args = parser.parse_args()
     return args
 
-
 def main():
-
     args = parse_args()
-
     if args.modality == 'point':
-        assert len(args.shape) == 2, 'invalid input shape'
+        assert len(args.shape) == 2, '无效的输入形状'
         input_shape = tuple(args.shape)
     elif args.modality == 'image':
         if len(args.shape) == 1:
@@ -54,20 +28,15 @@ def main():
         elif len(args.shape) == 2:
             input_shape = (3, ) + tuple(args.shape)
         else:
-            raise ValueError('invalid input shape')
+            raise ValueError('无效的输入形状')
     elif args.modality == 'multi':
-        raise NotImplementedError(
-            'FLOPs counter is currently not supported for models with '
-            'multi-modality input')
+        raise NotImplementedError('FLOPs计数器目前不支持多模态输入的模型')
 
     cfg = Config.fromfile(args.config)
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
 
-    model = build_model(
-        cfg.model,
-        train_cfg=cfg.get('train_cfg'),
-        test_cfg=cfg.get('test_cfg'))
+    model = build_model(cfg.model, train_cfg=cfg.get('train_cfg'), test_cfg=cfg.get('test_cfg'))
     if torch.cuda.is_available():
         model.cuda()
     model.eval()
@@ -75,18 +44,12 @@ def main():
     if hasattr(model, 'forward_dummy'):
         model.forward = model.forward_dummy
     else:
-        raise NotImplementedError(
-            'FLOPs counter is currently not supported for {}'.format(
-                model.__class__.__name__))
+        raise NotImplementedError('FLOPs计数器目前不支持{}'.format(model.__class__.__name__))
 
     flops, params = get_model_complexity_info(model, input_shape)
     split_line = '=' * 30
-    print(f'{split_line}\nInput shape: {input_shape}\n'
-          f'Flops: {flops}\nParams: {params}\n{split_line}')
-    print('!!!Please be cautious if you use the results in papers. '
-          'You may need to check if all ops are supported and verify that the '
-          'flops computation is correct.')
-
+    print(f'{split_line}\n输入形状: {input_shape}\nFlops: {flops}\n参数量: {params}\n{split_line}')
+    print('!!!如果您在论文中使用这些结果请谨慎。您可能需要检查是否支持所有操作并验证flops计算是否正确。')
 
 if __name__ == '__main__':
     main()

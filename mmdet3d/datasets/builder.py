@@ -37,7 +37,11 @@ def build_dataset(cfg, default_args=None):
         dataset = ClassBalancedDataset(
             build_dataset(cfg['dataset'], default_args), cfg['oversample_thr'])
     elif cfg['type'] == 'CBGSDataset':
-        dataset = CBGSDataset(build_dataset(cfg['dataset'], default_args))
+        if hasattr(cfg, 'split'):
+            split = cfg['split']
+        else:
+            split = 1
+        dataset = CBGSDataset(build_dataset(cfg['dataset'], default_args), split)
     elif isinstance(cfg.get('ann_file'), (list, tuple)):
         dataset = _concat_dataset(cfg, default_args)
     elif cfg['type'] in DATASETS._module_dict.keys():

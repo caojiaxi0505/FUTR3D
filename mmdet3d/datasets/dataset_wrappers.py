@@ -16,54 +16,40 @@ class CBGSDataset(object):
         dataset (:obj:`CustomDataset`): The dataset to be class sampled.
     """
 
-    def __init__(self, dataset):
+    def __init__(self, dataset, split=1):
         self.dataset = dataset
         self.CLASSES = dataset.CLASSES
         self.cat2id = {name: i for i, name in enumerate(self.CLASSES)}
+        # 使用部分数据集，默认使用整个数据集进行训练
+        self.split = split
         self.sample_indices = self._get_sample_indices()
         # self.dataset.data_infos = self.data_infos
         if hasattr(self.dataset, 'flag'):
-            self.flag = np.array(
-                [self.dataset.flag[ind] for ind in self.sample_indices],
-                dtype=np.uint8)
+            self.flag = np.array([self.dataset.flag[ind] for ind in self.sample_indices], dtype=np.uint8)
 
     def _get_sample_indices(self):
         """Load annotations from ann_file.
-
         Args:
             ann_file (str): Path of the annotation file.
-
         Returns:
             list[dict]: List of annotations after class sampling.
         """
-        
         class_sample_idxs = {cat_id: [] for cat_id in self.cat2id.values()}
         for idx in range(len(self.dataset)):
             sample_cat_ids = self.dataset.get_cat_ids(idx)
             for cat_id in sample_cat_ids:
                 class_sample_idxs[cat_id].append(idx)
-        duplicated_samples = sum(
-            [len(v) for _, v in class_sample_idxs.items()])
+        duplicated_samples = sum([len(v) for _, v in class_sample_idxs.items()])
         class_distribution = {
             k: len(v) / duplicated_samples
             for k, v in class_sample_idxs.items()
         }
-        
         sample_indices = []
-
         frac = 1.0 / len(self.CLASSES)
         ratios = [frac / v for v in class_distribution.values()]
         for cls_inds, ratio in zip(list(class_sample_idxs.values()), ratios):
-            sample_indices += np.random.choice(cls_inds,
-                                               int(len(cls_inds) *
-                                                   ratio)).tolist()
-        '''
-        cls_cnt = {cat_id: 0 for cat_id in self.cat2id.values()}
-        for idx in sample_indices:
-            sample_cat_ids = self.dataset.get_cat_ids(idx)
-            for cat_id in sample_cat_ids:
-                cls_cnt[cat_id] += 1
-        '''
+            sample_indices += np.random.choice(cls_inds, int(len(cls_inds) * ratio)).tolist()
+        sample_indices = np.random.choice(sample_indices, int(len(sample_indices) / self.split), replace=False).tolist()
         return sample_indices
 
     def __getitem__(self, idx):

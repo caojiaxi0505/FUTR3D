@@ -79,6 +79,7 @@ class FUTR3DTransformerDecoder(TransformerLayerSequence):
                 reference_points=None,
                 valid_ratios=None,
                 reg_branches=None,
+                backbone_feat=None,
                 **kwargs):
         """Forward function for `TransformerDecoder`.
         Args:
@@ -388,6 +389,7 @@ class FUTR3DTransformer(BaseModule):
                 img_metas=None,
                 mlvl_rad_masks=None,
                 mlvl_rad_pos_embeds=None,
+                backbone_feat=None,
                 **kwargs):
         """Forward function for `Transformer`.
         Args:
@@ -506,7 +508,6 @@ class FUTR3DTransformer(BaseModule):
 
         # decoder
         query = query.permute(1, 0, 2)
-        
         inter_states, inter_references = self.decoder(
             query=query,
             key=None,
@@ -526,6 +527,7 @@ class FUTR3DTransformer(BaseModule):
             rad_valid_ratios=rad_valid_ratios,
             reg_branches=reg_branches,
             img_metas=img_metas,
+            # backbone_feat=backbone_feat
             **kwargs)
 
         inter_references_out = inter_references

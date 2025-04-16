@@ -253,9 +253,9 @@ class NuScenesDataset(Custom3DDataset):
                     camera2lidar=camera2lidar_rts,
                 ))
 
-        if not self.test_mode:
-            annos = self.get_ann_info(index)
-            input_dict['ann_info'] = annos
+        # if not self.test_mode:
+        annos = self.get_ann_info(index)
+        input_dict['ann_info'] = annos
 
         return input_dict
 
