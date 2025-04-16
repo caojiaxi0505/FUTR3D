@@ -4,7 +4,7 @@ _base_ = [
 ]
 
 plugin=True
-#plugin_dir='plugin/fudet'
+#plugin_dir='plugin/futr3d'
 
 # If point cloud range is changed, the models should also change their point
 # cloud range accordingly

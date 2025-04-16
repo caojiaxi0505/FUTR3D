@@ -1,0 +1,10 @@
+data/
+work_dirs/
+out_dir/
+*.pyc
+show_dir/
+*.png
+.vscode/
+checkpoints/
+mmdet3d.egg-info/
+mmdet3d/.mim/

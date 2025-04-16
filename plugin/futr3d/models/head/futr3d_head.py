@@ -11,7 +11,7 @@ from mmdet.models.utils.transformer import inverse_sigmoid
 from mmdet3d.models.builder import HEADS
 from mmdet.models.dense_heads.detr_head import DETRHead
 from mmdet3d.models import builder
-from plugin.fudet.core.bbox.utils import normalize_bbox, denormalize_bbox
+from plugin.futr3d.core.bbox.utils import normalize_bbox, denormalize_bbox
 
 @HEADS.register_module()
 class FUTR3DHead(DETRHead):
@@ -144,7 +144,7 @@ class FUTR3DHead(DETRHead):
         
         return mlvl_masks, mlvl_positional_encodings
 
-    def forward(self, mlvl_pts_feats, mlvl_img_feats, radar_feats, img_metas):
+    def forward(self, mlvl_pts_feats, mlvl_img_feats, radar_feats, img_metas, backbone_feat=None):
         """Forward function.
         Args:
             mlvl_feats (tuple[Tensor]): Features from the upstream
@@ -201,6 +201,7 @@ class FUTR3DHead(DETRHead):
                     img_metas=img_metas,
                     mlvl_rad_masks=mlvl_rad_masks,
                     mlvl_rad_pos_embeds=mlvl_rad_positional_encodings,
+                    backbone_feat=backbone_feat,
             )
         hs = hs.permute(0, 2, 1, 3)
         outputs_classes = []
