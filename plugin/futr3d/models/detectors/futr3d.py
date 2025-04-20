@@ -133,15 +133,20 @@ class FUTR3D(MVXTwoStageDetector):
         batch_size = coors[-1, 0] + 1
         x = self.pts_middle_encoder(voxel_features, coors, batch_size)
         backbone_feats = self.pts_backbone(x)
-        self.plt_heatmap(backbone_feats, coors=None)
-        # self.backbone_feats = backbone_feats
+        # self.plt_heatmap(backbone_feats[0], coors=None, name="norm_backbone_feats_scale0")
+        # self.plt_heatmap(backbone_feats[1], coors=None, name="norm_backbone_feats_scale1")
         if self.with_pts_neck:
-            x = self.pts_neck([backbone_feats[0]])
+            if len(self.pts_neck.in_channels) == 1:
+                # 仅使用second第一个特征
+                x = self.pts_neck([backbone_feats[0]])
+            else:
+                # 使用second两个特征
+                x = self.pts_neck(backbone_feats)
         return x
 
-    def plt_heatmap(self, x, coors=None):
+    def plt_heatmap(self, x, coors=None, name="default"):
         # 可视化经过backbone的BEV特征的norm值
-        backbone_feat = x[0].detach()
+        backbone_feat = x.detach()
         norm = torch.norm(backbone_feat, dim=1).squeeze().cpu().numpy()
         plt.figure(figsize=(10, 10))
         plt.imshow(np.fliplr(norm.T), cmap='viridis', vmin=norm.min(), vmax=norm.max(), origin='lower')
@@ -157,7 +162,7 @@ class FUTR3D(MVXTwoStageDetector):
         high_y, high_x = np.unravel_index(flat_indices, flipped_norm.shape)
         # 在图上标记这些点
         plt.scatter(high_x, high_y, color='red', s=10, marker='.', alpha=0.7)
-        plt.savefig('绘图/norm_bev_feat_map_after_backbone.png')
+        plt.savefig(f'绘图/{name}.png')
         # 计算点(130,87)与其他点的相似度
         if coors is not None:
             target_point = backbone_feat[:, :, coors[0], coors[1]].clone() # [B, C]
@@ -381,35 +386,35 @@ class FUTR3D(MVXTwoStageDetector):
         points = Coord3DMode.convert_point(points[0], Coord3DMode.LIDAR, Coord3DMode.DEPTH)
         if points is not None and len(points) > 0 and gt_bboxes_3d is not None:
             fig, ax = plt.subplots(figsize=(10, 10))
-            # 可视化参考点
-            ref_points = self.pts_bbox_head.refpoint_embed.weight.sigmoid() * 2 - 1
-            ref_points = ref_points.cpu().numpy()
-            ref_points[:, 0] = ref_points[:, 0] * 54
-            ref_points[:, 1] = ref_points[:, 1] * 54
-            ax.scatter(ref_points[:, 0], ref_points[:, 1], s=1, c='red', label='Reference Points')
+            # # 可视化参考点
+            # ref_points = self.pts_bbox_head.refpoint_embed.weight.sigmoid() * 2 - 1
+            # ref_points = ref_points.cpu().numpy()
+            # ref_points[:, 0] = ref_points[:, 0] * 54
+            # ref_points[:, 1] = ref_points[:, 1] * 54
+            # ax.scatter(ref_points[:, 0], ref_points[:, 1], s=1, c='red', label='Reference Points')
             # 可视化点云
             point_cloud = points[..., :3].cpu().numpy()
             sc = ax.scatter(point_cloud[:, 0], point_cloud[:, 1], s=0.1, c=point_cloud[:, 2], cmap='viridis', label='Point Cloud')
             plt.colorbar(sc)
-            # 可视化GT框
-            gt_bev_boxes = Box3DMode.convert(gt_bboxes_3d[0][0], img_metas[0]['box_mode_3d'], Box3DMode.DEPTH)
-            gt_bev_boxes = gt_bev_boxes.bev.cpu().numpy()
-            for box in gt_bev_boxes:
-                center_x, center_y, width, length, angle = box
-                corner_x = center_x - width / 2
-                corner_y = center_y - length / 2
-                rect = plt.Rectangle((corner_x, corner_y), width, length, edgecolor='red', facecolor='none', linewidth=1.5, label='GT Box' if 'GT Box' not in plt.gca().get_legend_handles_labels()[1] else "")
-                rotation_transform = transforms.Affine2D().rotate_around(center_x, center_y, angle)
-                rect.set_transform(rotation_transform + ax.transData)
-                ax.add_patch(rect)
-            # 绘制网格线
-            grid_size = 45
-            x_ticks = np.linspace(-54, 54, grid_size + 1)
-            y_ticks = np.linspace(-54, 54, grid_size + 1)
-            for x in x_ticks:
-                ax.axvline(x=x, color='gray', linestyle='--', linewidth=0.5)
-            for y in y_ticks:
-                ax.axhline(y=y, color='gray', linestyle='--', linewidth=0.5)
+            # # 可视化GT框
+            # gt_bev_boxes = Box3DMode.convert(gt_bboxes_3d[0][0], img_metas[0]['box_mode_3d'], Box3DMode.DEPTH)
+            # gt_bev_boxes = gt_bev_boxes.bev.cpu().numpy()
+            # for box in gt_bev_boxes:
+            #     center_x, center_y, width, length, angle = box
+            #     corner_x = center_x - width / 2
+            #     corner_y = center_y - length / 2
+            #     rect = plt.Rectangle((corner_x, corner_y), width, length, edgecolor='red', facecolor='none', linewidth=1.5, label='GT Box' if 'GT Box' not in plt.gca().get_legend_handles_labels()[1] else "")
+            #     rotation_transform = transforms.Affine2D().rotate_around(center_x, center_y, angle)
+            #     rect.set_transform(rotation_transform + ax.transData)
+            #     ax.add_patch(rect)
+            # # 绘制网格线
+            # grid_size = 45
+            # x_ticks = np.linspace(-54, 54, grid_size + 1)
+            # y_ticks = np.linspace(-54, 54, grid_size + 1)
+            # for x in x_ticks:
+            #     ax.axvline(x=x, color='gray', linestyle='--', linewidth=0.5)
+            # for y in y_ticks:
+            #     ax.axhline(y=y, color='gray', linestyle='--', linewidth=0.5)
             # 设置标题、标签及显示范围
             plt.title('Point Cloud with GT Boxes and Reference Points in BEV')
             plt.xlabel('X')
@@ -424,7 +429,7 @@ class FUTR3D(MVXTwoStageDetector):
         bbox_pts = self.simple_test_pts(pts_feats, img_feats, radar_feats, img_metas, rescale=rescale)
         for result_dict, pts_bbox in zip(bbox_list, bbox_pts):
             result_dict['pts_bbox'] = pts_bbox
-        # bbox_list[0]['pts_bbox']['gt_bbox_3d'] = gt_bboxes_3d[0][0] # 添加GT框以便在3D可视化时使用
+        bbox_list[0]['pts_bbox']['gt_bbox_3d'] = gt_bboxes_3d[0][0] # 添加GT框以便在3D可视化时使用
         return bbox_list
     
     def aug_test(self, img_metas, points=None, imgs=None, radar=None, rescale=False):
@@ -481,4 +486,4 @@ class FUTR3D(MVXTwoStageDetector):
             gt_bbox_3d = Box3DMode.convert(gt_bbox_3d, box_mode_3d, Box3DMode.DEPTH)
             gt_bbox_3d = gt_bbox_3d.tensor.cpu().numpy()
             pred_bboxes = pred_bboxes.tensor.cpu().numpy()
-            show_result(points, gt_bbox_3d, pred_bboxes, out_dir, file_name, show=True)
+            show_result(points, gt_bboxes=None, pred_bboxes=None, out_dir=out_dir, filename=file_name, show=True)

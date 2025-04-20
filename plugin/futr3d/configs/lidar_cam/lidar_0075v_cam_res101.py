@@ -327,7 +327,8 @@ eval_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=1,
+    # samples_per_gpu=1,
+    samples_per_gpu=2,
     workers_per_gpu=4,
     train=dict(
         #type='CBGSDataset',
@@ -386,4 +387,5 @@ lr_config = dict(
     min_lr_ratio=1e-3)
 checkpoint_config = dict(interval=1, max_keep_ckpts=1)
 
-load_from = 'checkpoint/lidar_0075_cam_res101.pth'
+# load_from = 'checkpoint/lidar_0075_cam_res101.pth'
+load_from = 'checkpoints/fuse.pth'
