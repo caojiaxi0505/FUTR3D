@@ -103,7 +103,7 @@ def main():
         cfg.gpu_ids = [args.gpu_id]
     if args.autoscale_lr:
         # 根据CUDA_VISIBLE_DEVICES和cfg.data.samples_per_gpu自动缩放学习率，默认8个GPU，4个样本/GPU
-        cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 1
+        cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 4
     if args.launcher == 'none':
         distributed = False
     else:
