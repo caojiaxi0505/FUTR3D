@@ -1,106 +1,74 @@
-# FUTR3D: A Unified Sensor Fusion Framework for 3D Detection
-This repo implements the paper FUTR3D: A Unified Sensor Fusion Framework for 3D Detection. [Paper](https://arxiv.org/abs/2203.10642) - [project page](https://tsinghua-mars-lab.github.io/futr3d/)
+# FUTR3D改进
 
-We built our implementation upon MMdetection3D 1.0.0rc6. The major part of the code is in the directory `plugin/futr3d`. 
+## 性能
+### SPLIT 1
 
-## Environment
-### Prerequisite
-<ol>
-<li> mmcv-full>=1.5.2, <=1.7.0 </li>
-<li> mmdet>=2.24.0, <=3.0.0</li>
-<li> mmseg>=0.20.0, <=1.0.0</li>
-<li> nuscenes-devkit</li>
-</ol>
 
-### Installation
+### SPLIT 14
+| Method | iter | mAP | NDS | 说明 | 详细说明 | cfg | log |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| FUTR3D-L-bs4x2 | 14 | 0.5347 | 0.5979 | baseline，backbone为SECOND，未使用SyncBN | FPN输入使用128和256 | [cfg](work_dirs/lidar_0075v_900q_split14/两张卡每张卡4_BN2d/lidar_0075v_900q.py) | [log](work_dirs/lidar_0075v_900q_split14/两张卡每张卡4_BN2d/20250413_195705.log) |
+| FUTR3D-hednetbackbone-bs4x2 | 14 | 0.5614 | 0.6135 | 将backbone换为hednet，使用SyncBN | hednet堆叠4层，每层12个Conv2d，2个ConvTranspose2d，Channel为256，FPN输入只使用256 | [cfg](work_dirs/lidar_0075v_900q_split14_hednetbackbone/两张卡每张卡4_SyBN2d/lidar_0075v_900q_split14_cascadeded.py) | [log](work_dirs/lidar_0075v_900q_split14_hednetbackbone/两张卡每张卡4_SyBN2d/20250425_125602.log) |
+| FUTR3D-hednetbackbone-bs2x2 | 14 | 0.5499 | 0.5961 | 将backbone换为hednet，使用SyncBN | hednet堆叠4层，每层12个Conv2d，2个ConvTranspose2d，Channel为256，FPN输入只使用256 | [cfg](work_dirs/lidar_0075v_900q_split14_hednetbackbone/两张卡每张卡4_SyBN2d/lidar_0075v_900q_split14_cascadeded.py) | [log](work_dirs/lidar_0075v_900q_split14_hednetbackbone/两张卡每张卡2_SyBN2d/20250501_132035.log) |
+| FUTR3D-hednetbackbone4-secondmamba1-bs2x2 | 14 | 0.5441 | 0.5903 | 将backbone换为hednet，使用SyncBN | hednet堆叠4层，每层12个Conv2d，2个ConvTranspose2d，Channel为256，后添加一层SECONDMambaBlock，FPN输入只使用256 | [cfg](work_dirs/lidar_0075v_900q_split14_hednetbackbone4_secondmamba1/两张卡每张卡2_SyBN2d/fix2.py) | [log](work_dirs/lidar_0075v_900q_split14_hednetbackbone4_secondmamba1/两张卡每张卡2_SyBN2d/20250505_025221.log) |
 
-There is no neccesary to install mmdet3d separately, please install based on this repo:
 
+### SPLIT 40
+| Method | iter | mAP | NDS | 说明 | 详细说明 | cfg | log |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| FUTR3D-L-bs1x4 | 40 | 0.3683 | 0.3664 | baseline，backbone为SECOND，未使用SyncBN | FPN输入使用128和256 | [cfg](work_dirs/lidar_0075v_900q_split40/四张卡每张卡1_SyBN2d/lidar_0075v_900q_split40.py) | [log](work_dirs/lidar_0075v_900q_split40/四张卡每张卡1_SyBN2d/20250425_155400.log) |
+| FUTR3D-hetnetbackbone-bs1x4 | 40 | 0.4125 | 0.4050 | backbone换成hednet，使用SyncBN | hednet堆叠4层，每层12个Conv2d，2个ConvTranspose2d，Channel为256，FPN输入只使用256 | [cfg](work_dirs/lidar_0075v_900q_split40_hednetbackbone_split40/四张卡每张卡1_SyBN2d/lidar_0075v_900q_cascadeded_split40.py) | [log](work_dirs/lidar_0075v_900q_split40_hednetbackbone_split40/四张卡每张卡1_SyBN2d/20250425_071531.log) |
+| FUTR3D-hednetmiddleencoder128-hednetbackbone-bs1x4 | 40 | 0.4131 | 0.3893 | backbone和middle encoder都换成hednet，使用SyncBN | hednet堆叠4层，每层12个Conv2d，2个ConvTranspose2d，Channel为128，FPN输入只使用128 | [cfg](work_dirs/lidar_0075v_900q_split40_hednetmiddleencoder128_hednetbackbone/四张卡每张卡1_SyBN2d/lidar_0075v_900q_hednet_hednet_split40.py) | [log](work_dirs/lidar_0075v_900q_split40_hednetmiddleencoder128_hednetbackbone/四张卡每张卡1_SyBN2d/20250506_091518.log) |
+| FUTR3D-hednetmiddleencoder256-hednetbackbone-bs1x4 | 40 | 0.4722 | 0.4382 | backbone和middle encoder都换成hednet，使用SyncBN | hednet堆叠4层，每层12个Conv2d，2个ConvTranspose2d，Channel为256，FPN输入只使用256 | [cfg](work_dirs/lidar_0075v_900q_split40_hednetmiddleencoder256_hednetbackbone/四张卡每张卡1_SyBN2d/lidar_0075v_900q_hednet_hednet_split40_256.py) | [log](work_dirs/lidar_0075v_900q_split40_hednetmiddleencoder256_hednetbackbone/四张卡每张卡1_SyBN2d/20250506_010513.log) |
+
+
+## 测试说明
+测试默认使用一张GPU，每张GPU上放一个Sample，验证集共包含6019个Samples
+
+## SECOND-Backbone说明
+Block0
 ```
-cd futr3d
-pip3 install -v -e .
+Sequential(
+  (0): Conv2d(256, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+  (1): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+  (2): ReLU(inplace=True)
+  (3): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+  (4): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+  (5): ReLU(inplace=True)
+  (6): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+  (7): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+  (8): ReLU(inplace=True)
+  (9): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+  (10): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+  (11): ReLU(inplace=True)
+  (12): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+  (13): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+  (14): ReLU(inplace=True)
+  (15): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+  (16): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+  (17): ReLU(inplace=True)
+)
 ```
-
-
-### Data
-
- Please follow the mmdet3d to process the data. [mmdet3d_nuscenes_guidance](https://github.com/open-mmlab/mmdetection3d/blob/main/docs/en/advanced_guides/datasets/nuscenes.md)
- 
- Notably, we have modified the nuscenes_converter.py to add the radar infomation, so the infos.pkl generated by our code is different from the original code. The other infomation except the radar infos is the same with the original infos.pkl.
-
-## Train
-
-For example, to train FUTR3D with LiDAR only on 8 GPUs, please use
-
+Block1
 ```
-bash tools/dist_train.sh plugin/futr3d/configs/lidar_only/lidar_0075_900q.py 8
+Sequential(
+  (0): Conv2d(256, 256, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+  (1): BatchNorm2d(256, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+  (2): ReLU(inplace=True)
+  (3): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+  (4): BatchNorm2d(256, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+  (5): ReLU(inplace=True)
+  (6): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+  (7): BatchNorm2d(256, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+  (8): ReLU(inplace=True)
+  (9): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+  (10): BatchNorm2d(256, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+  (11): ReLU(inplace=True)
+  (12): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+  (13): BatchNorm2d(256, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+  (14): ReLU(inplace=True)
+  (15): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+  (16): BatchNorm2d(256, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+  (17): ReLU(inplace=True)
+)
 ```
-
-For LiDAR-Cam and Cam-Radar version, we need pre-trained model. 
-
-The Cam-Radar uses DETR3D model as pre-trained model, please check [DETR3D](https://github.com/WangYueFt/detr3d).
-
-The LiDAR-Cam uses fused LiDAR-only and Cam-only model as pre-trained model. You can use
-
-```
-python tools/fuse_model.py --img <cam checkpoint path> --lidar <lidar checkpoint path> --out <out model path>
-```
-to fuse cam-only and lidar-only models.
-
-## Evaluate
-
-For example, to evalaute FUTR3D with LiDAR-cam on 8 GPUs, please use
-
-```
-bash tools/dist_train.sh plugin/futr3d/configs/lidar_cam/lidar_0075_cam_res101.py ../lidar_cam.pth 8 --eval bbox
-```
-
-
-## Results
-
-### LiDAR & Cam
-| models      | mAP         | NDS | Link |
-| ----------- | ----------- | ----| ---- |
-| [Res101 + VoxelNet](./plugin/futr3d/configs/lidar_cam/lidar_0075v_cam_res101.py)  | 67.4 | 70.9 | [model](https://drive.google.com/file/d/1hdsrQhWOD6CjgoTgyi1i3KV94IRt2OhF/view?usp=share_link)|
-| [VoVNet + VoxelNet](./plugin/futr3d/configs/lidar_cam/lidar_0075v_cam_vov.py)   | 70.3 | 73.1 | [model](https://drive.google.com/file/d/1DgrzSoZSlTT_RDNGplHUMXatboKlkCqq/view?usp=share_link) |
-
-
-### Cam & Radar
-| models      | mAP         | NDS | Link |
-| ----------- | ----------- | ----| ----- |
-| [Res101 + Radar](./plugin/futr3d/configs/cam_radar/cam_res101_radar.py)  | 39.9  | 50.8 | [model](https://drive.google.com/file/d/1LX3kflWap_qWjTNy3Zy9gL9_IXANkUo1/view?usp=share_link) |
-
-### LiDAR only
-
-| models      | mAP         | NDS | Link |
-| ----------- | ----------- | ----|  ----|
-| [32 beam VoxelNet](./plugin/futr3d/configs/lidar_only/lidar_0075v_900q.py)  | 63.3 | 68.9 | [model](https://drive.google.com/file/d/1660B8m1CsDf_DwxdD_sXsdSTL7FbBnZn/view?usp=share_link)|
-| [4 beam VoxelNet](./plugin/futr3d/configs/lidar_only/lidar_0075v_900q_4b.py)   | 44.3 | 56.4 |
-| [1 beam VoxelNet](./plugin/futr3d/configs/lidar_only/lidar_0075v_900q_1b.py)   | 16.9 | 39.2 |
-
-### Cam only
-The camera-only version of FUTR3D is the same as DETR3D. Please check [DETR3D](https://github.com/WangYueFt/detr3d) for detail implementation.
-
-## Acknowledgment
-
-For the implementation, we rely heavily on [MMCV](https://github.com/open-mmlab/mmcv), [MMDetection](https://github.com/open-mmlab/mmdetection), [MMDetection3D](https://github.com/open-mmlab/mmdetection3d), and [DETR3D](https://github.com/WangYueFt/detr3d)
-
-
-## Related projects 
-1. [DETR3D: 3D Object Detection from Multi-view Images via 3D-to-2D Queries](https://tsinghua-mars-lab.github.io/detr3d/)
-2. [MUTR3D: A Multi-camera Tracking Framework via 3D-to-2D Queries](https://tsinghua-mars-lab.github.io/mutr3d/)
-3. For more projects on Autonomous Driving, check out our Visual-Centric Autonomous Driving (VCAD) project page [webpage](https://tsinghua-mars-lab.github.io/vcad/) 
-
-
-## Reference
-
-```
-@article{chen2022futr3d,
-  title={FUTR3D: A Unified Sensor Fusion Framework for 3D Detection},
-  author={Chen, Xuanyao and Zhang, Tianyuan and Wang, Yue and Wang, Yilun and Zhao, Hang},
-  journal={arXiv preprint arXiv:2203.10642},
-  year={2022}
-}
-```
-
-Contact: Xuanyao Chen at: `xuanyaochen19@fudan.edu.cn` or `ixyaochen@gmail.com`

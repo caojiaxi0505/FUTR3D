@@ -4,11 +4,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.cnn import xavier_init, constant_init
-from mmcv.cnn.bricks.registry import (ATTENTION,
-                                      TRANSFORMER_LAYER_SEQUENCE)
-from mmcv.cnn.bricks.transformer import (MultiScaleDeformableAttention,
-                                         TransformerLayerSequence,
-                                         build_transformer_layer_sequence)
+from mmcv.cnn.bricks.registry import ATTENTION, TRANSFORMER_LAYER_SEQUENCE
+from mmcv.cnn.bricks.transformer import (
+    MultiScaleDeformableAttention,
+    TransformerLayerSequence,
+    build_transformer_layer_sequence,
+)
 from mmcv.ops.multi_scale_deform_attn import MultiScaleDeformableAttnFunction
 from mmcv.runner.base_module import BaseModule
 from mmcv.utils import IS_CUDA_AVAILABLE, IS_MLU_AVAILABLE
@@ -59,27 +60,31 @@ class FUTR3DAttention(BaseModule):
             Default: None.
     """
 
-    def __init__(self,
-                 use_lidar=True,
-                 use_camera=False,
-                 use_radar=False,
-                 embed_dims=256,
-                 radar_dims=64,
-                 num_cams=6,
-                 num_heads=8,
-                 num_levels=4,
-                 num_points=4,
-                 im2col_step=64,
-                 dropout=0.1,
-                 pc_range=None,
-                 rad_cuda=True,
-                 batch_first=False,
-                 norm_cfg=None,
-                 init_cfg=None):
+    def __init__(
+        self,
+        use_lidar=True,
+        use_camera=False,
+        use_radar=False,
+        embed_dims=256,
+        radar_dims=64,
+        num_cams=6,
+        num_heads=8,
+        num_levels=4,
+        num_points=4,
+        im2col_step=64,
+        dropout=0.1,
+        pc_range=None,
+        rad_cuda=True,
+        batch_first=False,
+        norm_cfg=None,
+        init_cfg=None,
+    ):
         super().__init__(init_cfg)
         if embed_dims % num_heads != 0:
-            raise ValueError(f'embed_dims must be divisible by num_heads, '
-                             f'but got {embed_dims} and {num_heads}')
+            raise ValueError(
+                f"embed_dims must be divisible by num_heads, "
+                f"but got {embed_dims} and {num_heads}"
+            )
         dim_per_head = embed_dims // num_heads
         self.norm_cfg = norm_cfg
         self.dropout = nn.Dropout(dropout)
@@ -96,16 +101,17 @@ class FUTR3DAttention(BaseModule):
         def _is_power_of_2(n):
             if (not isinstance(n, int)) or (n < 0):
                 raise ValueError(
-                    'invalid input for _is_power_of_2: {} (type: {})'.format(
-                        n, type(n)))
+                    "invalid input for _is_power_of_2: {} (type: {})".format(n, type(n))
+                )
             return (n & (n - 1) == 0) and n != 0
 
         if not _is_power_of_2(dim_per_head):
             warnings.warn(
                 "You'd better set embed_dims in "
-                'MultiScaleDeformAttention to make '
-                'the dimension of each attention head a power of 2 '
-                'which is more efficient in our CUDA implementation.')
+                "MultiScaleDeformAttention to make "
+                "the dimension of each attention head a power of 2 "
+                "which is more efficient in our CUDA implementation."
+            )
 
         self.im2col_step = im2col_step
         self.embed_dims = embed_dims
@@ -115,24 +121,25 @@ class FUTR3DAttention(BaseModule):
         self.fused_embed = 0
         if self.use_lidar:
             self.sampling_offsets = nn.Linear(
-                embed_dims, num_heads * num_levels * num_points * 2)
-            self.attention_weights = nn.Linear(embed_dims,
-                                            num_heads * num_levels * num_points)
+                embed_dims, num_heads * num_levels * num_points * 2
+            )
+            self.attention_weights = nn.Linear(
+                embed_dims, num_heads * num_levels * num_points
+            )
             self.value_proj = nn.Linear(embed_dims, embed_dims)
             self.output_proj = nn.Linear(embed_dims, embed_dims)
             self.fused_embed += embed_dims
-        
+
         if self.use_camera:
-            self.img_attention_weights = nn.Linear(embed_dims,
-                                           num_cams*num_levels)
+            self.img_attention_weights = nn.Linear(embed_dims, num_cams * num_levels)
 
             self.img_output_proj = nn.Linear(embed_dims, embed_dims)
-        
+
             self.position_encoder = nn.Sequential(
-                nn.Linear(3, self.embed_dims), 
+                nn.Linear(3, self.embed_dims),
                 nn.LayerNorm(self.embed_dims),
                 nn.ReLU(inplace=True),
-                nn.Linear(self.embed_dims, self.embed_dims), 
+                nn.Linear(self.embed_dims, self.embed_dims),
                 nn.LayerNorm(self.embed_dims),
                 nn.ReLU(inplace=True),
             )
@@ -140,9 +147,9 @@ class FUTR3DAttention(BaseModule):
             self.fused_embed += embed_dims
         if self.use_radar:
             self.rad_sampling_offsets = nn.Linear(
-                embed_dims, num_heads * num_points * 2)
-            self.rad_attention_weights = nn.Linear(embed_dims,
-                                            num_heads * num_points)
+                embed_dims, num_heads * num_points * 2
+            )
+            self.rad_attention_weights = nn.Linear(embed_dims, num_heads * num_points)
             self.rad_value_proj = nn.Linear(radar_dims, radar_dims)
             self.rad_output_proj = nn.Linear(radar_dims, radar_dims)
             self.fused_embed += radar_dims
@@ -160,53 +167,55 @@ class FUTR3DAttention(BaseModule):
 
     def init_weights(self):
         """Default initialization for Parameters of Module."""
-        
+
         device = next(self.parameters()).device
-        thetas = torch.arange(
-            self.num_heads, dtype=torch.float32,
-            device=device) * (2.0 * math.pi / self.num_heads)
+        thetas = torch.arange(self.num_heads, dtype=torch.float32, device=device) * (
+            2.0 * math.pi / self.num_heads
+        )
         grid_init = torch.stack([thetas.cos(), thetas.sin()], -1)
-        grid_init = (grid_init /
-                     grid_init.abs().max(-1, keepdim=True)[0]).view(
-                         self.num_heads, 1, 1,
-                         2).repeat(1, self.num_levels, self.num_points, 1)
+        grid_init = (
+            (grid_init / grid_init.abs().max(-1, keepdim=True)[0])
+            .view(self.num_heads, 1, 1, 2)
+            .repeat(1, self.num_levels, self.num_points, 1)
+        )
         for i in range(self.num_points):
             grid_init[:, :, i, :] *= i + 1
         if self.use_lidar:
-            constant_init(self.sampling_offsets, 0.)
+            constant_init(self.sampling_offsets, 0.0)
             self.sampling_offsets.bias.data = grid_init.view(-1)
-            constant_init(self.attention_weights, val=0., bias=0.)
-            xavier_init(self.value_proj, distribution='uniform', bias=0.)
-            xavier_init(self.output_proj, distribution='uniform', bias=0.)
+            constant_init(self.attention_weights, val=0.0, bias=0.0)
+            xavier_init(self.value_proj, distribution="uniform", bias=0.0)
+            xavier_init(self.output_proj, distribution="uniform", bias=0.0)
         if self.use_camera:
-            constant_init(self.img_attention_weights, val=0., bias=0.)
-            xavier_init(self.img_output_proj, distribution='uniform', bias=0.)
+            constant_init(self.img_attention_weights, val=0.0, bias=0.0)
+            xavier_init(self.img_output_proj, distribution="uniform", bias=0.0)
         if self.use_radar:
-            constant_init(self.rad_sampling_offsets, 0.)
+            constant_init(self.rad_sampling_offsets, 0.0)
             self.rad_sampling_offsets.bias.data = grid_init[:, 0].reshape(-1)
-            constant_init(self.rad_attention_weights, val=0., bias=0.)
-            xavier_init(self.rad_value_proj, distribution='uniform', bias=0.)
-            xavier_init(self.rad_output_proj, distribution='uniform', bias=0.)
+            constant_init(self.rad_attention_weights, val=0.0, bias=0.0)
+            xavier_init(self.rad_value_proj, distribution="uniform", bias=0.0)
+            xavier_init(self.rad_output_proj, distribution="uniform", bias=0.0)
         self._is_init = True
 
-    
-    def forward(self,
-                query,
-                key=None,
-                value=None,
-                identity=None,
-                query_pos=None,
-                key_padding_mask=None,
-                reference_points=None,
-                spatial_shapes=None,
-                level_start_index=None,
-                pts_feats=None,
-                img_feats=None,
-                rad_feats=None,
-                rad_key_padding_mask=None,
-                rad_spatial_shapes=None,
-                rad_level_start_index=None,
-                **kwargs):
+    def forward(
+        self,
+        query,
+        key=None,
+        value=None,
+        identity=None,
+        query_pos=None,
+        key_padding_mask=None,
+        reference_points=None,
+        spatial_shapes=None,
+        level_start_index=None,
+        pts_feats=None,
+        img_feats=None,
+        rad_feats=None,
+        rad_key_padding_mask=None,
+        rad_spatial_shapes=None,
+        rad_level_start_index=None,
+        **kwargs,
+    ):
         """Forward Function of MultiScaleDeformAttention.
         Args:
             query (torch.Tensor): Query of Transformer with shape
@@ -254,7 +263,7 @@ class FUTR3DAttention(BaseModule):
         if self.use_lidar:
             value = pts_feats
             bs, num_value, _ = value.shape
-            
+
             assert (spatial_shapes[:, 0] * spatial_shapes[:, 1]).sum() == num_value
 
             value = self.value_proj(value)
@@ -262,51 +271,68 @@ class FUTR3DAttention(BaseModule):
                 value = value.masked_fill(key_padding_mask[..., None], 0.0)
             value = value.view(bs, num_value, self.num_heads, -1)
             sampling_offsets = self.sampling_offsets(query).view(
-                bs, num_query, self.num_heads, self.num_levels, self.num_points, 2)
+                bs, num_query, self.num_heads, self.num_levels, self.num_points, 2
+            )
             attention_weights = self.attention_weights(query).view(
-                bs, num_query, self.num_heads, self.num_levels * self.num_points)
+                bs, num_query, self.num_heads, self.num_levels * self.num_points
+            )
             attention_weights = attention_weights.softmax(-1)
 
-            attention_weights = attention_weights.view(bs, num_query,
-                                                    self.num_heads,
-                                                    self.num_levels,
-                                                    self.num_points)
-            ref_points = reference_points.unsqueeze(2).expand(-1, -1, self.num_levels, -1)
+            attention_weights = attention_weights.view(
+                bs, num_query, self.num_heads, self.num_levels, self.num_points
+            )
+            ref_points = reference_points.unsqueeze(2).expand(
+                -1, -1, self.num_levels, -1
+            )
             # ref_points = reference_points
             ref_points = ref_points[..., :2]
             if ref_points.shape[-1] == 2:
                 offset_normalizer = torch.stack(
-                    [spatial_shapes[..., 1], spatial_shapes[..., 0]], -1)
-                sampling_locations = ref_points[:, :, None, :, None, :] \
-                    + sampling_offsets \
-                    / offset_normalizer[None, None, None, :, None, :]
+                    [spatial_shapes[..., 1], spatial_shapes[..., 0]], -1
+                )
+                sampling_locations = (
+                    ref_points[:, :, None, :, None, :]
+                    + sampling_offsets / offset_normalizer[None, None, None, :, None, :]
+                )
             else:
                 raise ValueError(
-                    f'Last dim of reference_points must be'
-                    f' 2, but get {reference_points.shape[-1]} instead.')
-            if ((IS_CUDA_AVAILABLE and value.is_cuda)
-                    or (IS_MLU_AVAILABLE and value.is_mlu)):
+                    f"Last dim of reference_points must be"
+                    f" 2, but get {reference_points.shape[-1]} instead."
+                )
+            if (IS_CUDA_AVAILABLE and value.is_cuda) or (
+                IS_MLU_AVAILABLE and value.is_mlu
+            ):
                 output = MultiScaleDeformableAttnFunction.apply(
-                    value, spatial_shapes, level_start_index, sampling_locations,
-                    attention_weights, self.im2col_step)
+                    value,
+                    spatial_shapes,
+                    level_start_index,
+                    sampling_locations,
+                    attention_weights,
+                    self.im2col_step,
+                )
             else:
                 output = multi_scale_deformable_attn_pytorch(
-                    value, spatial_shapes, sampling_locations, attention_weights)
+                    value, spatial_shapes, sampling_locations, attention_weights
+                )
 
             pts_output = self.output_proj(output)
 
         if self.use_camera:
             # (B, 1, num_query, num_cams, num_points, num_levels)
             img_attention_weights = self.img_attention_weights(query).view(
-                bs, 1, num_query, self.num_cams, 1, self.num_levels)
+                bs, 1, num_query, self.num_cams, 1, self.num_levels
+            )
             # reference_points: (bs, num_query, 3)
             # output (B, C, num_query, num_cam, num_points, len(lvl_feats))
             reference_points_3d, img_output, mask = feature_sampling(
-                img_feats, reference_points, self.pc_range, kwargs['img_metas'])
+                img_feats, reference_points, self.pc_range, kwargs["img_metas"]
+            )
             img_output = torch.nan_to_num(img_output)
             mask = torch.nan_to_num(mask)
 
-            img_attention_weights = self.weight_dropout(img_attention_weights.sigmoid()) * mask
+            img_attention_weights = (
+                self.weight_dropout(img_attention_weights.sigmoid()) * mask
+            )
             img_output = img_output * img_attention_weights
             # output (B, emb_dims, num_query)
             img_output = img_output.sum(-1).sum(-1).sum(-1)
@@ -318,48 +344,61 @@ class FUTR3DAttention(BaseModule):
         if self.use_radar:
             value = rad_feats
             bs, num_value, _ = value.shape
-            
-            assert (rad_spatial_shapes[:, 0] * rad_spatial_shapes[:, 1]).sum() == num_value
+
+            assert (
+                rad_spatial_shapes[:, 0] * rad_spatial_shapes[:, 1]
+            ).sum() == num_value
 
             value = self.rad_value_proj(value)
             if rad_key_padding_mask is not None:
                 value = value.masked_fill(rad_key_padding_mask[..., None], 0.0)
             value = value.view(bs, num_value, self.num_heads, -1)
-            
+
             sampling_offsets = self.rad_sampling_offsets(query).view(
-                bs, num_query, self.num_heads, 1, self.num_points, 2)
+                bs, num_query, self.num_heads, 1, self.num_points, 2
+            )
             attention_weights = self.rad_attention_weights(query).view(
-                bs, num_query, self.num_heads, self.num_points)
+                bs, num_query, self.num_heads, self.num_points
+            )
             attention_weights = attention_weights.softmax(-1)
 
-            attention_weights = attention_weights.view(bs, num_query,
-                                                    self.num_heads,
-                                                    1,
-                                                    self.num_points)
+            attention_weights = attention_weights.view(
+                bs, num_query, self.num_heads, 1, self.num_points
+            )
             ref_points = reference_points.unsqueeze(2).expand(-1, -1, 1, -1)
             # ref_points = reference_points
             ref_points = ref_points[..., :2]
             if ref_points.shape[-1] == 2:
                 offset_normalizer = torch.stack(
-                    [rad_spatial_shapes[..., 1], rad_spatial_shapes[..., 0]], -1)
-                sampling_locations = ref_points[:, :, None, :, None, :] \
-                    + sampling_offsets \
-                    / offset_normalizer[None, None, None, :, None, :]
+                    [rad_spatial_shapes[..., 1], rad_spatial_shapes[..., 0]], -1
+                )
+                sampling_locations = (
+                    ref_points[:, :, None, :, None, :]
+                    + sampling_offsets / offset_normalizer[None, None, None, :, None, :]
+                )
             else:
                 raise ValueError(
-                    f'Last dim of reference_points must be'
-                    f' 2, but get {reference_points.shape[-1]} instead.')
-            if ((IS_CUDA_AVAILABLE and value.is_cuda)
-                    or (IS_MLU_AVAILABLE and value.is_mlu)):
+                    f"Last dim of reference_points must be"
+                    f" 2, but get {reference_points.shape[-1]} instead."
+                )
+            if (IS_CUDA_AVAILABLE and value.is_cuda) or (
+                IS_MLU_AVAILABLE and value.is_mlu
+            ):
                 output = MultiScaleDeformableAttnFunction.apply(
-                    value, rad_spatial_shapes, rad_level_start_index, sampling_locations,
-                    attention_weights, self.im2col_step)
+                    value,
+                    rad_spatial_shapes,
+                    rad_level_start_index,
+                    sampling_locations,
+                    attention_weights,
+                    self.im2col_step,
+                )
             else:
                 output = multi_scale_deformable_attn_pytorch(
-                    value, rad_spatial_shapes, sampling_locations, attention_weights)
+                    value, rad_spatial_shapes, sampling_locations, attention_weights
+                )
 
             radar_output = self.rad_output_proj(output)
-            
+
         if self.use_lidar and self.use_camera and self.use_radar:
             output = torch.cat((img_output, pts_output, radar_output), dim=2)
             output = self.modality_fusion_layer(output)
@@ -382,46 +421,61 @@ class FUTR3DAttention(BaseModule):
 
         return self.dropout(output) + identity
 
+
 def feature_sampling(mlvl_feats, reference_points, pc_range, img_metas):
     lidar2img = []
     for img_meta in img_metas:
-        lidar2img.append(img_meta['lidar2img'])
+        lidar2img.append(img_meta["lidar2img"])
     lidar2img = np.asarray(lidar2img)
-    lidar2img = reference_points.new_tensor(lidar2img) # (B, N, 4, 4)
+    lidar2img = reference_points.new_tensor(lidar2img)  # (B, N, 4, 4)
     reference_points = reference_points.clone()
     reference_points_3d = reference_points.clone()
-    reference_points[..., 0:1] = reference_points[..., 0:1]*(pc_range[3] - pc_range[0]) + pc_range[0]
-    reference_points[..., 1:2] = reference_points[..., 1:2]*(pc_range[4] - pc_range[1]) + pc_range[1]
-    reference_points[..., 2:3] = reference_points[..., 2:3]*(pc_range[5] - pc_range[2]) + pc_range[2]
+    reference_points[..., 0:1] = (
+        reference_points[..., 0:1] * (pc_range[3] - pc_range[0]) + pc_range[0]
+    )
+    reference_points[..., 1:2] = (
+        reference_points[..., 1:2] * (pc_range[4] - pc_range[1]) + pc_range[1]
+    )
+    reference_points[..., 2:3] = (
+        reference_points[..., 2:3] * (pc_range[5] - pc_range[2]) + pc_range[2]
+    )
     # reference_points (B, num_queries, 4)
-    reference_points = torch.cat((reference_points, torch.ones_like(reference_points[..., :1])), -1)
+    reference_points = torch.cat(
+        (reference_points, torch.ones_like(reference_points[..., :1])), -1
+    )
     B, num_query = reference_points.size()[:2]
     num_cam = lidar2img.size(1)
-    reference_points = reference_points.view(B, 1, num_query, 4).repeat(1, num_cam, 1, 1).unsqueeze(-1)
+    reference_points = (
+        reference_points.view(B, 1, num_query, 4).repeat(1, num_cam, 1, 1).unsqueeze(-1)
+    )
     lidar2img = lidar2img.view(B, num_cam, 1, 4, 4).repeat(1, 1, num_query, 1, 1)
     reference_points_cam = torch.matmul(lidar2img, reference_points).squeeze(-1)
     eps = 1e-5
-    mask = (reference_points_cam[..., 2:3] > eps)
+    mask = reference_points_cam[..., 2:3] > eps
     reference_points_cam = reference_points_cam[..., 0:2] / torch.maximum(
-        reference_points_cam[..., 2:3], torch.ones_like(reference_points_cam[..., 2:3])*eps)
-    reference_points_cam[..., 0] /= img_metas[0]['img_shape'][0][1]
-    reference_points_cam[..., 1] /= img_metas[0]['img_shape'][0][0]
+        reference_points_cam[..., 2:3],
+        torch.ones_like(reference_points_cam[..., 2:3]) * eps,
+    )
+    reference_points_cam[..., 0] /= img_metas[0]["img_shape"][0][1]
+    reference_points_cam[..., 1] /= img_metas[0]["img_shape"][0][0]
     reference_points_cam = (reference_points_cam - 0.5) * 2
-    mask = (mask & (reference_points_cam[..., 0:1] > -1.0) 
-                 & (reference_points_cam[..., 0:1] < 1.0) 
-                 & (reference_points_cam[..., 1:2] > -1.0) 
-                 & (reference_points_cam[..., 1:2] < 1.0))
+    mask = (
+        mask
+        & (reference_points_cam[..., 0:1] > -1.0)
+        & (reference_points_cam[..., 0:1] < 1.0)
+        & (reference_points_cam[..., 1:2] > -1.0)
+        & (reference_points_cam[..., 1:2] < 1.0)
+    )
     mask = mask.view(B, num_cam, 1, num_query, 1, 1).permute(0, 2, 3, 1, 4, 5)
     mask = torch.nan_to_num(mask)
     sampled_feats = []
     for lvl, feat in enumerate(mlvl_feats):
         B, N, C, H, W = feat.size()
-        feat = feat.view(B*N, C, H, W)
-        reference_points_cam_lvl = reference_points_cam.view(B*N, num_query, 1, 2)
+        feat = feat.view(B * N, C, H, W)
+        reference_points_cam_lvl = reference_points_cam.view(B * N, num_query, 1, 2)
         sampled_feat = F.grid_sample(feat, reference_points_cam_lvl)
         sampled_feat = sampled_feat.view(B, N, C, num_query, 1).permute(0, 2, 3, 1, 4)
         sampled_feats.append(sampled_feat)
     sampled_feats = torch.stack(sampled_feats, -1)
-    sampled_feats = sampled_feats.view(B, C, num_query, num_cam,  1, len(mlvl_feats))
+    sampled_feats = sampled_feats.view(B, C, num_query, num_cam, 1, len(mlvl_feats))
     return reference_points_3d, sampled_feats, mask
-
