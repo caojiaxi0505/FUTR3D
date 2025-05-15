@@ -2,6 +2,7 @@ from mmcv.parallel import is_module_wrapper
 from mmcv.runner.hooks import HOOKS, Hook
 from mmdet3d.datasets.pipelines import ObjectSample
 
+
 @HOOKS.register_module()
 class FadeOjectSampleHook(Hook):
     """Switch the mode of YOLOX during training.
@@ -15,9 +16,7 @@ class FadeOjectSampleHook(Hook):
             skip pipeline. Default: ('Mosaic', 'RandomAffine', 'MixUp')
     """
 
-    def __init__(self,
-                 num_last_epochs=5,
-                 skip_type_keys=('ObjectSample')):
+    def __init__(self, num_last_epochs=5, skip_type_keys=("ObjectSample")):
         self.num_last_epochs = num_last_epochs
         self.skip_type_keys = skip_type_keys
         self._restart_dataloader = False
@@ -31,24 +30,26 @@ class FadeOjectSampleHook(Hook):
         if is_module_wrapper(model):
             model = model.module
         if (epoch + 1) > runner.max_epochs - self.num_last_epochs:
-            runner.logger.info('No ObjectSample now!')
-            # The dataset pipeline cannot be updated when persistent_workers  
+            runner.logger.info("No ObjectSample now!")
+            # The dataset pipeline cannot be updated when persistent_workers
             # is True, so we need to force the dataloader's multi-process
             # restart. This is a very hacky approach.
-            #print(type(train_loader.dataset.pipeline.transforms))
-            #print(train_loader.dataset.__dict__)
-            if hasattr(train_loader.dataset, 'dataset'):
+            # print(type(train_loader.dataset.pipeline.transforms))
+            # print(train_loader.dataset.__dict__)
+            if hasattr(train_loader.dataset, "dataset"):
                 transforms = train_loader.dataset.dataset.pipeline.transforms
-            else:    
+            else:
                 transforms = train_loader.dataset.pipeline.transforms
-            
+
             for transform in transforms:
                 if isinstance(transform, ObjectSample):
                     transforms.remove(transform)
                     break
-            
-            if hasattr(train_loader, 'persistent_workers'
-                       ) and train_loader.persistent_workers is True:
+
+            if (
+                hasattr(train_loader, "persistent_workers")
+                and train_loader.persistent_workers is True
+            ):
                 train_loader._DataLoader__initialized = False
                 train_loader._iterator = None
                 self._restart_dataloader = True

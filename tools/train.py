@@ -24,6 +24,7 @@ try:
     from mmdet.utils import setup_multi_processes
 except ImportError:
     from mmdet3d.utils import setup_multi_processes
+import torch.nn as nn
 
 
 def parse_args():
@@ -137,6 +138,7 @@ def main():
     meta['seed'] = seed
     meta['exp_name'] = osp.basename(args.config)
     model = build_model(cfg.model, train_cfg=cfg.get('train_cfg'), test_cfg=cfg.get('test_cfg'))
+    model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model.init_weights()
     logger.info(f'Model:\n{model}')
     datasets = [build_dataset(cfg.data.train)]

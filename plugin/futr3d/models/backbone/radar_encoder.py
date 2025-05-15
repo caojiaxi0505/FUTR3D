@@ -50,7 +50,7 @@ class RFNLayer(nn.Module):
         super().__init__()
         self.name = "RFNLayer"
         self.last_vfe = last_layer
-        
+
         self.units = out_channels
 
         if norm_cfg is None:
@@ -140,10 +140,16 @@ class RadarFeatureNet(nn.Module):
         )
 
         # normalize x,y,z to [0, 1]
-        features[:, :, 0:1] = (features[:, :, 0:1] - self.pc_range[0]) / (self.pc_range[3] - self.pc_range[0])
-        features[:, :, 1:2] = (features[:, :, 1:2] - self.pc_range[1]) / (self.pc_range[4] - self.pc_range[1])
-        features[:, :, 2:3] = (features[:, :, 2:3] - self.pc_range[2]) / (self.pc_range[5] - self.pc_range[2])
-        
+        features[:, :, 0:1] = (features[:, :, 0:1] - self.pc_range[0]) / (
+            self.pc_range[3] - self.pc_range[0]
+        )
+        features[:, :, 1:2] = (features[:, :, 1:2] - self.pc_range[1]) / (
+            self.pc_range[4] - self.pc_range[1]
+        )
+        features[:, :, 2:3] = (features[:, :, 2:3] - self.pc_range[2]) / (
+            self.pc_range[5] - self.pc_range[2]
+        )
+
         # Combine together feature decorations
         features_ls = [features, f_center]
         features = torch.cat(features_ls, dim=-1)
@@ -154,7 +160,7 @@ class RadarFeatureNet(nn.Module):
         mask = get_paddings_indicator(num_voxels, voxel_count, axis=0)
         mask = torch.unsqueeze(mask, -1).type_as(features)
         features *= mask
-        
+
         # Forward pass through PFNLayers
         for rfn in self.rfn_layers:
             features = rfn(features)
@@ -181,10 +187,10 @@ class RadarEncoder(nn.Module):
 
     def forward(self, feats, coords, batch_size, sizes):
         x = self.pts_voxel_encoder(feats, sizes, coords)
-        
+
         x = self.pts_middle_encoder(x, coords, batch_size)
-        
+
         if self.pts_bev_encoder is not None:
             x = self.pts_bev_encoder(x)
-        
+
         return x
