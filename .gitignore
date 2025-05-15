@@ -7,6 +7,6 @@ mmdet3d.egg-info/
 mmdet3d/.mim/
 out_dir/
 show_dir/
-work_dirs/
+work_dirs/**/*.pth
 *.png
 *.pyc
