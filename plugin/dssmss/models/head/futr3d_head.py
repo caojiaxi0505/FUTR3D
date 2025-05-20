@@ -11,10 +11,11 @@ from mmdet3d.models import builder
 from mmdet3d.models.builder import HEADS
 from plugin.dssmss.core.bbox.utils import denormalize_bbox, normalize_bbox
 # from plugin.dssmss.mamba.dss import DSS
-# from plugin.dssmss.mamba.dss_0511 import DSS
-from plugin.dssmss.mamba.dss_0514 import DSS
+from plugin.dssmss.mamba.dss_0511 import DSS
+# from plugin.dssmss.mamba.dss_0514 import DSS
 from plugin.dssmss.mamba.mss import ForePredNet, MSSMamba, generate_foregt
-
+from transformers.activations import ACT2FN
+from timm.layers import DropPath
 
 @HEADS.register_module(force=True)
 class FUTR3DHead(DETRHead):
@@ -82,6 +83,7 @@ class FUTR3DHead(DETRHead):
             self.use_dss = use_dss
             if use_hybrid:
                 for lid in hybrid:
+                    attention_layer = self.transformer.decoder.layers[lid].attentions[0]
                     self.transformer.decoder.layers[lid].attentions[0] = DSS(
                         d_model=256,
                         drop_prob=dss_drop_prob,
@@ -97,19 +99,26 @@ class FUTR3DHead(DETRHead):
                     )
             else:
                 for lid in range(len(self.transformer.decoder.layers)):
-                    self.transformer.decoder.layers[lid].attentions[0] = DSS(
-                        d_model=256,
-                        drop_prob=dss_drop_prob,
-                        mamba_version=dss_mamba_version,
-                        num_layers=dss_num_layers,
-                        use_morton=dss_use_morton,
-                        use_conv=dss_use_conv,
-                        use_xy=dss_use_xy,
-                        use_rope=dss_use_rope,
-                        rope_fraction=dss_rope_fraction,
-                        rope_base=dss_rope_base,
-                        rope_max_seq_len=dss_rope_max_seq_len
-                    )
+                    attention_layer = self.transformer.decoder.layers[lid].attentions[0]
+                    self.transformer.decoder.layers[lid].attentions[0] = nn.ModuleList([
+                        attention_layer,
+                        nn.LayerNorm(256),
+                        # DropPath(0.3),
+                        DSS(
+                            d_model=256,
+                            drop_prob=dss_drop_prob,
+                            mamba_version=dss_mamba_version,
+                            num_layers=dss_num_layers,
+                            use_morton=dss_use_morton,
+                            use_conv=dss_use_conv,
+                            use_xy=dss_use_xy,
+                            use_rope=dss_use_rope,
+                            rope_fraction=dss_rope_fraction,
+                            rope_base=dss_rope_base,
+                            rope_max_seq_len=dss_rope_max_seq_len
+                        )
+                    ])
+                        
         # ---------------- 已弃用 ----------------
         self.use_mss = False
         if use_mss:
@@ -122,7 +131,8 @@ class FUTR3DHead(DETRHead):
             # self.fore_pred_criterion = FocalLoss(alpha=0.25, gamma=2.0)
 
     def _init_layers(self):
-        fc_cls = Linear(self.embed_dims, self.cls_out_channels)
+        # fc_cls = Linear(self.embed_dims, self.cls_out_channels)
+        fc_cls = MLP(input_dims=self.embed_dims, intermediate_size=self.embed_dims * 4, num_classes=self.cls_out_channels)
         reg_branch = []
         for _ in range(self.num_reg_fcs):
             reg_branch.append(Linear(self.embed_dims, self.embed_dims))
@@ -154,9 +164,16 @@ class FUTR3DHead(DETRHead):
     def init_weights(self):
         self.transformer.init_weights()
         if self.loss_cls.use_sigmoid:
+            # bias_init = bias_init_with_prob(0.01)
+            # for m in self.cls_branches:
+            #     nn.init.constant_(m.bias, bias_init)
             bias_init = bias_init_with_prob(0.01)
-            for m in self.cls_branches:
-                nn.init.constant_(m.bias, bias_init)
+            for m_head in self.cls_branches:
+                final_project_layer = m_head.down_proj
+                if hasattr(final_project_layer, 'bias') and final_project_layer.bias is not None:
+                    nn.init.constant_(final_project_layer.bias, bias_init)
+                else:
+                    print(f"Warning: Final projection layer in {type(m_head)} does not have a bias or is not found as expected.")
         for m in self.reg_branches:
             constant_init(m[-1], 0, bias=0)
         nn.init.constant_(self.reg_branches[0][-1].bias.data[2:], -2.0)
@@ -572,3 +589,16 @@ class FocalLoss(nn.Module):
         alpha_weight = torch.where(targets == 1, self.alpha, 1 - self.alpha)
         loss = alpha_weight * focal_weight * ce_loss
         return loss.mean()
+
+
+class MLP(nn.Module):
+    def __init__(self, input_dims, intermediate_size, num_classes): # 参数名调整以更清晰
+        super().__init__()
+        self.gate_proj = nn.Linear(input_dims, intermediate_size, bias=False)
+        self.up_proj = nn.Linear(input_dims, intermediate_size, bias=False)
+        self.act_fn = ACT2FN['silu']
+        self.down_proj = nn.Linear(intermediate_size, num_classes, bias=True) # 输出维度改为num_classes
+
+    def forward(self, x):
+        # x 的维度是 self.embed_dims (即这里的 input_dims)
+        return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
