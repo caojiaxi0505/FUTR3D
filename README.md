@@ -2,14 +2,14 @@
 
 ## 性能
 
-| iter | batch size | num GPUs | mAP | NDS | cfg | log |
+| iter | batch size | num GPUs | mAP | NDS | SyncBN | log |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| 1 | 2 | 1 | 0.6393 | 0.6925 | | |
-| 14 | | | | | | |
-| 40 | | | | | | |
+| 1 | 2 | 1 | 0.6393 | 0.6925 | x | [log](work_dirs/lidar_0075v_900q_split1/一张卡每张卡2_BN2d/20250404_124520.log) |
+| 14 | 4 | 2 | 0.5347 | 0.5979 | x | [log](work_dirs/lidar_0075v_900q_split14/两张卡每张卡4_BN2d/20250413_195705.log) |
+| 40 | 1 | 4 | 0.3683 | 0.3664 | v | [log](work_dirs/lidar_0075v_900q_split40/四张卡每张卡1_SyBN2d/20250425_155400.log) |
 
 
-## 性能
+## 对比实验
 ### SPLIT 1
 
 
@@ -23,12 +23,12 @@
 
 
 ### SPLIT 40
-| Method | iter | mAP | NDS | 说明 | 详细说明 | cfg | log |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| FUTR3D-L-bs1x4 | 40 | 0.3683 | 0.3664 | baseline，backbone为SECOND，未使用SyncBN | FPN输入使用128和256 | [cfg](work_dirs/lidar_0075v_900q_split40/四张卡每张卡1_SyBN2d/lidar_0075v_900q_split40.py) | [log](work_dirs/lidar_0075v_900q_split40/四张卡每张卡1_SyBN2d/20250425_155400.log) |
-| FUTR3D-hetnetbackbone-bs1x4 | 40 | 0.4125 | 0.4050 | backbone换成hednet，使用SyncBN | hednet堆叠4层，每层12个Conv2d，2个ConvTranspose2d，Channel为256，FPN输入只使用256 | [cfg](work_dirs/lidar_0075v_900q_split40_hednetbackbone_split40/四张卡每张卡1_SyBN2d/lidar_0075v_900q_cascadeded_split40.py) | [log](work_dirs/lidar_0075v_900q_split40_hednetbackbone_split40/四张卡每张卡1_SyBN2d/20250425_071531.log) |
-| FUTR3D-hednetmiddleencoder128-hednetbackbone-bs1x4 | 40 | 0.4131 | 0.3893 | backbone和middle encoder都换成hednet，使用SyncBN | hednet堆叠4层，每层12个Conv2d，2个ConvTranspose2d，Channel为128，FPN输入只使用128 | [cfg](work_dirs/lidar_0075v_900q_split40_hednetmiddleencoder128_hednetbackbone/四张卡每张卡1_SyBN2d/lidar_0075v_900q_hednet_hednet_split40.py) | [log](work_dirs/lidar_0075v_900q_split40_hednetmiddleencoder128_hednetbackbone/四张卡每张卡1_SyBN2d/20250506_091518.log) |
-| FUTR3D-hednetmiddleencoder256-hednetbackbone-bs1x4 | 40 | 0.4722 | 0.4382 | backbone和middle encoder都换成hednet，使用SyncBN | hednet堆叠4层，每层12个Conv2d，2个ConvTranspose2d，Channel为256，FPN输入只使用256 | [cfg](work_dirs/lidar_0075v_900q_split40_hednetmiddleencoder256_hednetbackbone/四张卡每张卡1_SyBN2d/lidar_0075v_900q_hednet_hednet_split40_256.py) | [log](work_dirs/lidar_0075v_900q_split40_hednetmiddleencoder256_hednetbackbone/四张卡每张卡1_SyBN2d/20250506_010513.log) |
+| Method | iter | mAP | NDS | 说明 | 详细说明 | cfg | log | memory | time |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| FUTR3D-L-bs1x4 | 40 | 0.3683 | 0.3664 | baseline，backbone为SECOND，未使用SyncBN | FPN输入使用128和256 | [cfg](work_dirs/lidar_0075v_900q_split40/四张卡每张卡1_SyBN2d/lidar_0075v_900q_split40.py) | [log](work_dirs/lidar_0075v_900q_split40/四张卡每张卡1_SyBN2d/20250425_155400.log) | 3567 | 4h42min |
+| FUTR3D-hetnetbackbone-bs1x4 | 40 | 0.4125 | 0.4050 | backbone换成hednet，使用SyncBN | hednet堆叠4层，每层12个Conv2d，2个ConvTranspose2d，Channel为256，FPN输入只使用256 | [cfg](work_dirs/lidar_0075v_900q_split40_hednetbackbone_split40/四张卡每张卡1_SyBN2d/lidar_0075v_900q_cascadeded_split40.py) | [log](work_dirs/lidar_0075v_900q_split40_hednetbackbone_split40/四张卡每张卡1_SyBN2d/20250425_071531.log) | 5774 | 6h1min |
+| FUTR3D-hednetmiddleencoder128-hednetbackbone-bs1x4 | 40 | 0.4131 | 0.3893 | backbone和middle encoder都换成hednet，使用SyncBN | hednet堆叠4层，每层12个Conv2d，2个ConvTranspose2d，Channel为128，FPN输入只使用128 | [cfg](work_dirs/lidar_0075v_900q_split40_hednetmiddleencoder128_hednetbackbone/四张卡每张卡1_SyBN2d/lidar_0075v_900q_hednet_hednet_split40.py) | [log](work_dirs/lidar_0075v_900q_split40_hednetmiddleencoder128_hednetbackbone/四张卡每张卡1_SyBN2d/20250506_091518.log) | 5625 | 6h10min |
+| FUTR3D-hednetmiddleencoder256-hednetbackbone-bs1x4 | 40 | 0.4722 | 0.4382 | backbone和middle encoder都换成hednet，使用SyncBN | hednet堆叠4层，每层12个Conv2d，2个ConvTranspose2d，Channel为256，FPN输入只使用256 | [cfg](work_dirs/lidar_0075v_900q_split40_hednetmiddleencoder256_hednetbackbone/四张卡每张卡1_SyBN2d/lidar_0075v_900q_hednet_hednet_split40_256.py) | [log](work_dirs/lidar_0075v_900q_split40_hednetmiddleencoder256_hednetbackbone/四张卡每张卡1_SyBN2d/20250506_010513.log) | 8071 | 8h6min |
 
 
 ## 测试说明
