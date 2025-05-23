@@ -11,10 +11,11 @@ from mmdet3d.models import builder
 from mmdet3d.models.builder import HEADS
 from plugin.dssmss.core.bbox.utils import denormalize_bbox, normalize_bbox
 # from plugin.dssmss.mamba.dss import DSS
-from plugin.dssmss.mamba.dss_0511 import DSS
-# from plugin.dssmss.mamba.dss_0514 import DSS
+from plugin.dssmss.mamba.dss_0511 import DSS as DSS0511
+from plugin.dssmss.mamba.dss_0514 import DSS as DSS0514
 from plugin.dssmss.mamba.mss import ForePredNet, MSSMamba, generate_foregt
 from transformers.activations import ACT2FN
+from functools import partial
 from timm.layers import DropPath
 
 @HEADS.register_module(force=True)
@@ -27,6 +28,7 @@ class FUTR3DHead(DETRHead):
         use_dss=True,
         use_hybrid=False,
         hybrid=None,
+        dss_date_version="0511",
         dss_drop_prob=0.5,
         dss_mamba_version="DSSMamba_Pico",
         dss_num_layers=6,
@@ -81,6 +83,10 @@ class FUTR3DHead(DETRHead):
         self.use_dss = False
         if use_dss:
             self.use_dss = use_dss
+            if dss_date_version == "0511":
+                DSS = partial(DSS0511)
+            elif dss_date_version == "0514":
+                DSS = partial(DSS0514)
             if use_hybrid:
                 for lid in hybrid:
                     attention_layer = self.transformer.decoder.layers[lid].attentions[0]
@@ -102,8 +108,7 @@ class FUTR3DHead(DETRHead):
                     attention_layer = self.transformer.decoder.layers[lid].attentions[0]
                     self.transformer.decoder.layers[lid].attentions[0] = nn.ModuleList([
                         attention_layer,
-                        nn.LayerNorm(256),
-                        # DropPath(0.3),
+                        RMSNorm(256),
                         DSS(
                             d_model=256,
                             drop_prob=dss_drop_prob,
@@ -116,7 +121,8 @@ class FUTR3DHead(DETRHead):
                             rope_fraction=dss_rope_fraction,
                             rope_base=dss_rope_base,
                             rope_max_seq_len=dss_rope_max_seq_len
-                        )
+                        ),
+                        DropPath(0.1),
                     ])
                         
         # ---------------- 已弃用 ----------------
@@ -602,3 +608,17 @@ class MLP(nn.Module):
     def forward(self, x):
         # x 的维度是 self.embed_dims (即这里的 input_dims)
         return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
+
+
+class RMSNorm(nn.Module):
+    def __init__(self, hidden_size, eps=1e-6):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(hidden_size))
+        self.variance_epsilon = eps
+
+    def forward(self, hidden_states):
+        input_dtype = hidden_states.dtype
+        hidden_states = hidden_states.to(torch.float32)
+        variance = hidden_states.pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
+        return self.weight * hidden_states.to(input_dtype)
