@@ -2,7 +2,24 @@
 
 ## 项目框架说明
 ```
-- FUTR3D
+FUTR3D
+├── causal-conv1d/      # 不作修改
+├── checkpoints/        # 存储预训练权重
+├── configs/            # 不作修改，存储官方支持模型配置
+├── data/               # 数据集
+├── mamba/              # 不作修改
+├── mamba_experimental/ # 实验性mamba代码
+├── mmdet3d/            # 核心组件
+|   ├── apis/
+|   ├── core/
+|   ├── datasets/
+|   ├── models/
+|   ├── ops/
+|   └── utils/
+├── plugin/             # 核心组件
+|   ├── dssmss/
+|   └── futr3d/
+└── tools/
 
 ```
 
