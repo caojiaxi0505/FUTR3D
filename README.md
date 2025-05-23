@@ -1,5 +1,11 @@
 # FUTR3D
 
+## 项目框架说明
+```
+- FUTR3D
+
+```
+
 ## 环境配置
 ```
 conda create -n futr3d python=3.8 -y
