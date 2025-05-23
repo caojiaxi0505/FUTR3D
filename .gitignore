@@ -10,3 +10,4 @@ show_dir/
 work_dirs/**/*.pth
 *.png
 *.pyc
+causal-conv1d/*.so
