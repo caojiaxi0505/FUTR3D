@@ -1,5 +1,27 @@
 # FUTR3D
 
+## 环境配置
+```
+conda create -n futr3d python=3.8 -y
+conda activate futr3d
+conda install pytorch==1.13.0 torchvision==0.14.0 torchaudio==0.13.0 pytorch-cuda=11.6 -c pytorch -c nvidia
+pip install -U openmim
+mim install mmengine
+mim install mmcv-full==1.7.0
+pip install mmdet==2.27.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install mmsegmentation==0.30.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install nuscenes-devkit -i https://pypi.tuna.tsinghua.edu.cn/simple
+cd FUTR3D/
+pip install -v -e . 
+pip install numpy==1.23.5 -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install yapf==0.40.1 -i https://pypi.tuna.tsinghua.edu.cn/simple
+cd causal-conv1d
+pip install -v -e .
+cd ../
+cd mamba
+pip install -v -e .
+```
+
 ## 性能
 
 | iter | batch size | num GPUs | mAP | NDS | SyncBN | log |
