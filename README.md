@@ -126,3 +126,49 @@ Sequential(
   (17): ReLU(inplace=True)
 )
 ```
+
+
+FPS: 4.56
+mAP: 0.5339                                                                          
+mATE: 0.3768
+mASE: 0.2713
+mAOE: 0.3987
+mAVE: 0.4499
+mAAE: 0.2031
+NDS: 0.5969
+Eval time: 51.1s
+Per-class results:
+Object Class            AP      ATE     ASE     AOE     AVE     AAE   
+car                     0.799   0.210   0.162   0.134   0.405   0.217 
+truck                   0.498   0.415   0.215   0.169   0.353   0.222 
+bus                     0.601   0.435   0.211   0.138   0.991   0.274 
+trailer                 0.351   0.615   0.222   0.568   0.294   0.178 
+construction_vehicle    0.185   0.794   0.463   0.975   0.145   0.357 
+pedestrian              0.756   0.244   0.287   0.615   0.425   0.134 
+motorcycle              0.558   0.261   0.260   0.361   0.729   0.232 
+bicycle                 0.399   0.193   0.268   0.535   0.257   0.010 
+traffic_cone            0.597   0.211   0.347   nan     nan     nan   
+barrier                 0.595   0.390   0.277   0.093   nan     nan 
+
+
+### SPLIT14
+
+#### GPU:2 & batch size:2
+
+| Method | num_GPUs | batch_size | SyncBN | mAP | NDS | time |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| lidar_0075v_900q | 2 | 2 | v | 0.5082 | 0.5534 | 7h21min(val4) |
+| lidar_0075v_900q_hednetbackbone4 | 2 | 2 | v | 0.5499 | 0.5961 | 10h29min(val4)(+42.63%) |
+
+#### GPU:4 & batch size:4
+
+| Method | num_GPUs | batch_size | SyncBN | mAP | NDS | time |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| lidar_0075v_900q | 2 | 4 | v | 0.5343 | 0.5977 | 6h22min(val4) |
+| lidar_0075v_900q | 2 | 4 | x | 0.5347 | 0.5979 | 8h48min(val20) |
+| lidar_0075v_900q_hednetbackbone4 | 2 | 4 | v | 0.5614 | 0.6135 | 8h47min(val4)(+37.96%) |
+
+
+### SPLIT40
+
+#### 
