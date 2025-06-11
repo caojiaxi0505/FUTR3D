@@ -81,11 +81,7 @@ model = dict(
         type="CascadeDEDBackbone",
         in_channels=256,
         model_cfg=dict(
-            USE_SECONDMAMBA=False,
-            FEATURE_DIM=256,
-            NUM_LAYERS=4,
-            NUM_SBB=[2, 1, 1],
-            DOWN_STRIDES=[1, 2, 2],
+            FEATURE_DIM=256, NUM_LAYERS=4, NUM_SBB=[2, 1, 1], DOWN_STRIDES=[1, 2, 2], USE_SECONDMAMBA=False
         ),
     ),
     pts_neck=dict(
@@ -102,20 +98,7 @@ model = dict(
     pts_bbox_head=dict(
         type="FUTR3DHead",
         use_dab=True,
-        # ---- dss相关参数 -----------------
-        use_dss=True,
-        use_hybrid=False,
-        dss_date_version="0511",
-        dss_drop_prob=0.3,
-        dss_mamba_version="DSSMamba_Huge_EP2",
-        dss_num_layers=2,
-        dss_use_morton=True,
-        dss_use_conv=True,
-        dss_use_xy=True,
-        dss_use_rope=True,
-        dss_stack=True,
-        dss_strong_cls=True,
-        # ---- dss相关参数 -----------------
+        use_dss=False,
         anchor_size=3,
         use_aux=True,
         aux_head=center_head,
@@ -347,9 +330,10 @@ eval_pipeline = [
     dict(type="Collect3D", keys=["points"]),
 ]
 data = dict(
-    samples_per_gpu=2,
+    samples_per_gpu=1,
     train=dict(
         type="CBGSDataset",
+        split=14,
         dataset=dict(
             type=dataset_type,
             data_root=data_root,
@@ -372,9 +356,7 @@ data = dict(
         ann_file=data_root + "nuscenes_infos_val.pkl",
     ),
 )
-evaluation = dict(interval=1)
+evaluation = dict(interval=5)
 find_unused_parameters = True
 custom_hooks = [dict(type="FadeOjectSampleHook", num_last_epochs=5)]
-checkpoint_config = dict(interval=1, max_keep_ckpts=10)
-
-# fp16 = dict(loss_scale=1.)
+checkpoint_config = dict(interval=1, max_keep_ckpts=1)
