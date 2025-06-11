@@ -104,7 +104,9 @@ def main():
         cfg.gpu_ids = [args.gpu_id]
     if args.autoscale_lr:
         # 根据CUDA_VISIBLE_DEVICES和cfg.data.samples_per_gpu自动缩放学习率，默认8个GPU，4个样本/GPU
-        cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 4
+        # cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 4
+        cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 1 * 10
+
     if args.launcher == 'none':
         distributed = False
     else:
@@ -138,7 +140,7 @@ def main():
     meta['seed'] = seed
     meta['exp_name'] = osp.basename(args.config)
     model = build_model(cfg.model, train_cfg=cfg.get('train_cfg'), test_cfg=cfg.get('test_cfg'))
-    model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
+    # model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model.init_weights()
     logger.info(f'Model:\n{model}')
     datasets = [build_dataset(cfg.data.train)]
