@@ -39,6 +39,8 @@ class FUTR3DHead(DETRHead):
         dss_rope_fraction=1.0,
         dss_rope_base=10000.0,
         dss_rope_max_seq_len=900,
+        dss_stack=False,
+        dss_strong_cls=False,
         # ---- 弃用的参数 --------------------------------
         dss_mamba_prenorm=False,
         dss_mamba_cfg=dict(d_model=256, d_state=128, expand=1),
@@ -73,6 +75,7 @@ class FUTR3DHead(DETRHead):
         self.anchor_size = anchor_size
         self.num_patterns = num_patterns
         self.use_aux = use_aux
+        self.strong_cls = dss_strong_cls
         super(FUTR3DHead, self).__init__(*args, transformer=transformer, **kwargs)
         if self.use_aux:
             train_cfg = kwargs["train_cfg"]
@@ -105,11 +108,28 @@ class FUTR3DHead(DETRHead):
                     )
             else:
                 for lid in range(len(self.transformer.decoder.layers)):
-                    attention_layer = self.transformer.decoder.layers[lid].attentions[0]
-                    self.transformer.decoder.layers[lid].attentions[0] = nn.ModuleList([
-                        attention_layer,
-                        RMSNorm(256),
-                        DSS(
+                    if dss_stack:
+                        attention_layer = self.transformer.decoder.layers[lid].attentions[0]
+                        self.transformer.decoder.layers[lid].attentions[0] = nn.ModuleList([
+                            attention_layer,
+                            RMSNorm(256),
+                            DSS(
+                                d_model=256,
+                                drop_prob=dss_drop_prob,
+                                mamba_version=dss_mamba_version,
+                                num_layers=dss_num_layers,
+                                use_morton=dss_use_morton,
+                                use_conv=dss_use_conv,
+                                use_xy=dss_use_xy,
+                                use_rope=dss_use_rope,
+                                rope_fraction=dss_rope_fraction,
+                                rope_base=dss_rope_base,
+                                rope_max_seq_len=dss_rope_max_seq_len
+                            ),
+                            DropPath(0.1),
+                        ])
+                    else:
+                        self.transformer.decoder.layers[lid].attentions[0] = DSS(
                             d_model=256,
                             drop_prob=dss_drop_prob,
                             mamba_version=dss_mamba_version,
@@ -121,9 +141,7 @@ class FUTR3DHead(DETRHead):
                             rope_fraction=dss_rope_fraction,
                             rope_base=dss_rope_base,
                             rope_max_seq_len=dss_rope_max_seq_len
-                        ),
-                        DropPath(0.1),
-                    ])
+                        )
                         
         # ---------------- 已弃用 ----------------
         self.use_mss = False
@@ -135,10 +153,13 @@ class FUTR3DHead(DETRHead):
             # self.batch_norm = nn.ModuleList([nn.BatchNorm2d(mss_fore_pred_net_in_channels) for _ in range(mss_num_scales)])
             # # self.fore_pred_criterion = nn.BCELoss()
             # self.fore_pred_criterion = FocalLoss(alpha=0.25, gamma=2.0)
+        
 
     def _init_layers(self):
-        # fc_cls = Linear(self.embed_dims, self.cls_out_channels)
-        fc_cls = MLP(input_dims=self.embed_dims, intermediate_size=self.embed_dims * 4, num_classes=self.cls_out_channels)
+        if not self.strong_cls:
+            fc_cls = Linear(self.embed_dims, self.cls_out_channels)
+        else:
+            fc_cls = MLP(input_dims=self.embed_dims, intermediate_size=self.embed_dims * 4, num_classes=self.cls_out_channels)
         reg_branch = []
         for _ in range(self.num_reg_fcs):
             reg_branch.append(Linear(self.embed_dims, self.embed_dims))
@@ -170,16 +191,18 @@ class FUTR3DHead(DETRHead):
     def init_weights(self):
         self.transformer.init_weights()
         if self.loss_cls.use_sigmoid:
-            # bias_init = bias_init_with_prob(0.01)
-            # for m in self.cls_branches:
-            #     nn.init.constant_(m.bias, bias_init)
-            bias_init = bias_init_with_prob(0.01)
-            for m_head in self.cls_branches:
-                final_project_layer = m_head.down_proj
-                if hasattr(final_project_layer, 'bias') and final_project_layer.bias is not None:
-                    nn.init.constant_(final_project_layer.bias, bias_init)
-                else:
-                    print(f"Warning: Final projection layer in {type(m_head)} does not have a bias or is not found as expected.")
+            if not self.strong_cls:
+                bias_init = bias_init_with_prob(0.01)
+                for m in self.cls_branches:
+                    nn.init.constant_(m.bias, bias_init)
+            else:
+                bias_init = bias_init_with_prob(0.01)
+                for m_head in self.cls_branches:
+                    final_project_layer = m_head.down_proj
+                    if hasattr(final_project_layer, 'bias') and final_project_layer.bias is not None:
+                        nn.init.constant_(final_project_layer.bias, bias_init)
+                    else:
+                        print(f"Warning: Final projection layer in {type(m_head)} does not have a bias or is not found as expected.")
         for m in self.reg_branches:
             constant_init(m[-1], 0, bias=0)
         nn.init.constant_(self.reg_branches[0][-1].bias.data[2:], -2.0)
