@@ -101,8 +101,8 @@ class FUTR3D(MVXTwoStageDetector):
         self.aux_weight = aux_weight
         if freeze_backbone:
             self._freeze_backbone()
-        self.pts_voxel_layer = pts_voxel_layer
-        self.pts_voxel_encoder = pts_voxel_encoder
+        self.pts_voxel_layer_cfg = pts_voxel_layer
+        self.pts_voxel_encoder_cfg = pts_voxel_encoder
 
     def _freeze_backbone(self):
         for modules in [
@@ -148,7 +148,7 @@ class FUTR3D(MVXTwoStageDetector):
         """Extract features of points."""
         if not self.with_pts_bbox:
             return None
-        type = self.pts_voxel_encoder.get("type", "HardSimpleVFE")
+        type = self.pts_voxel_encoder_cfg.get("type", "HardSimpleVFE")
         if type == "HardSimpleVFE":
             voxels, num_points, coors = self.voxelize(pts)
             voxel_features = self.pts_voxel_encoder(voxels, num_points, coors)
