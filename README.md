@@ -172,3 +172,17 @@ barrier                 0.595   0.390   0.277   0.093   nan     nan
 ### SPLIT40
 
 #### 
+
+
+# 实验结果记录
+
+## Full dataset
+| Method | mAP | NDS | time | infer time | GPUs x batch_size | LR | extra explanation | log | pth |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| lidar_0075v_900q | 63.3 | 68.9 | - | - | - | - | baseline | - | - |
+| lidar_0075v_900q_split1_1x2_bn2d | 63.93 | 69.25 | 6d22h2min | 16min25s (6.1FPS) | 1 x 2 | 6.25e-6 (1/16) | baseline replicate | [log](results/lidar_0075v_900q_split1_1x2_bn/20250404_124520.log) | [pth](results/lidar_0075v_900q_split1_1x2_bn/epoch_20.pth) |
+| 
+
+## 1/5 Split
+
+## 1/14 Split

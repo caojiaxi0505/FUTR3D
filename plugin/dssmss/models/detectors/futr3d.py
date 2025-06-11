@@ -12,9 +12,9 @@ from mmcv.ops import Voxelization
 from mmcv.parallel import DataContainer as DC
 from mmcv.runner import force_fp32
 from mmdet3d.core import (
+    bbox3d2result,
     Box3DMode,
     Coord3DMode,
-    bbox3d2result,
     merge_aug_bboxes_3d,
     show_result,
 )
