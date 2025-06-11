@@ -10,3 +10,5 @@ work_dirs/**/*.pth
 *.png
 *.pyc
 causal-conv1d/*.so
+pretrained/
+results/**/*.pth
