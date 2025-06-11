@@ -19,9 +19,11 @@ from mmdet3d.core import (
     show_result,
 )
 from mmdet3d.models import builder
+from mmdet3d.models.backbones.base_bev_res_backbone import BaseBEVResBackbone
 from mmdet3d.models.builder import DETECTORS
 from mmdet3d.models.detectors import Base3DDetector, MVXTwoStageDetector
-from plugin.futr3d.models.utils.grid_mask import GridMask
+from mmdet3d.models.middle_encoders.lion import LION3DBackboneOneStride
+from plugin.dssmss.models.utils.grid_mask import GridMask
 from torch.nn import functional as F
 
 
@@ -172,6 +174,7 @@ class FUTR3D(MVXTwoStageDetector):
         if not self.with_pts_bbox:
             return None
         type = self.pts_voxel_encoder_cfg.get("type", "HardSimpleVFE")
+        # ================ pts_middle_encoder使用amp ================
         if type == "HardSimpleVFE":
             voxels, num_points, coors = self.voxelize(pts)
             voxel_features = self.pts_voxel_encoder(voxels, num_points, coors)
@@ -181,12 +184,25 @@ class FUTR3D(MVXTwoStageDetector):
             voxels, coors = self.dynamic_voxelize(pts)
             voxel_features, feature_coors = self.pts_voxel_encoder(voxels, coors, pts)
             batch_size = coors[-1, 0] + 1
-            x = self.pts_middle_encoder(voxel_features, feature_coors, batch_size)
-        backbone_feats = self.pts_backbone(x)
+            if isinstance(self.pts_middle_encoder, LION3DBackboneOneStride):
+                batch_dict = dict(
+                    voxel_features=voxel_features,
+                    voxel_coords=feature_coors,
+                    batch_size=batch_size,
+                )
+                x = self.pts_middle_encoder(batch_dict)
+            else:
+                x = self.pts_middle_encoder(voxel_features, feature_coors, batch_size)
+        if isinstance(self.pts_backbone, BaseBEVResBackbone):
+            backbone_feats = self.pts_backbone(x)['spatial_features_2d']
+        else:
+            backbone_feats = self.pts_backbone(x)
         # self.plt_heatmap(backbone_feats[0], coors=None, name="norm_backbone_feats_scale0")
         # self.plt_heatmap(backbone_feats[1], coors=None, name="norm_backbone_feats_scale1")
         if self.with_pts_neck:
-            if len(self.pts_neck.in_channels) == 1:
+            if isinstance(self.pts_backbone, BaseBEVResBackbone):
+                x = self.pts_neck([backbone_feats])
+            elif len(self.pts_neck.in_channels) == 1:
                 x = self.pts_neck([backbone_feats[0]])
             else:
                 x = self.pts_neck(backbone_feats)
@@ -518,9 +534,9 @@ class FUTR3D(MVXTwoStageDetector):
         )
         for result_dict, pts_bbox in zip(bbox_list, bbox_pts):
             result_dict["pts_bbox"] = pts_bbox
-        bbox_list[0]["pts_bbox"]["gt_bbox_3d"] = gt_bboxes_3d[0][
-            0
-        ]  # 添加GT框以便在3D可视化时使用
+        # bbox_list[0]["pts_bbox"]["gt_bbox_3d"] = gt_bboxes_3d[0][
+        #     0
+        # ]  # 添加GT框以便在3D可视化时使用
         return bbox_list
 
     def aug_test(self, img_metas, points=None, imgs=None, radar=None, rescale=False):
