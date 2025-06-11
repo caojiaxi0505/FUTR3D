@@ -10,9 +10,10 @@ from .pointnet2_sa_ssg import PointNet2SASSG
 from .second import SECOND
 from .secondmamba import SECONDMamba
 from .hednet import CascadeDEDBackbone
+from .base_bev_res_backbone import BaseBEVResBackbone
 
 __all__ = [
     'ResNet', 'ResNetV1d', 'ResNeXt', 'SSDVGG', 'HRNet', 'NoStemRegNet',
     'SECOND', 'SECONDMamba', 'DGCNNBackbone', 'PointNet2SASSG', 'PointNet2SAMSG',
-    'MultiBackbone', 'DLANet', 'MinkResNet', 'CascadeDEDBackbone'
+    'MultiBackbone', 'DLANet', 'MinkResNet', 'CascadeDEDBackbone', 'BaseBEVResBackbone'
 ]
