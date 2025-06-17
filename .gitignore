@@ -12,3 +12,5 @@ work_dirs/**/*.pth
 causal-conv1d/*.so
 pretrained/
 results/**/*.pth
+
+.git_disabled/
