@@ -1,0 +1,14 @@
+.vscode/
+causal-conv1d/build
+mamba/build
+checkpoints/
+data/
+mmdet3d.egg-info/
+mmdet3d/.mim/
+show_dir/
+work_dirs/**/*.pth
+*.png
+*.pyc
+causal-conv1d/*.so
+pretrained/
+results/**/*.pth

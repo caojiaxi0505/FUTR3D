@@ -1,0 +1,3 @@
+CUDA_VISIBLE_DEVICES=0,1 bash tools/dist_train.sh plugin/dssmss/configs/dss/lidar_0075v_900q_split14_hednetbackbone4_dss0511_dsSmall.py 2 --autoscale-lr
+CUDA_VISIBLE_DEVICES=0,1 bash tools/dist_train.sh plugin/dssmss/configs/dss/lidar_0075v_900q_split14_hednetbackbone4_dss0511_dsSmall_dp01.py 2 --autoscale-lr
+CUDA_VISIBLE_DEVICES=0,1 bash tools/dist_train.sh plugin/dssmss/configs/dss/lidar_0075v_900q_split14_hednetbackbone4_dss0511_dsSmall_dp01_rope.py 2 --autoscale-lr
