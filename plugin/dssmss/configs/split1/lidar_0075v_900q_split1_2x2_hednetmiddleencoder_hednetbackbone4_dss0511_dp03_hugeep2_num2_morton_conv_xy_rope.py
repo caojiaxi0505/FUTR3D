@@ -305,7 +305,7 @@ test_pipeline = [
         pad_empty_sweeps=True,
         remove_close=True,
     ),
-    dict(type="LoadAnnotations3D", with_bbox_3d=True, with_label_3d=True),
+    # dict(type="LoadAnnotations3D", with_bbox_3d=True, with_label_3d=True),
     dict(
         type="MultiScaleFlipAug3D",
         img_scale=(1333, 800),
@@ -323,29 +323,30 @@ test_pipeline = [
             dict(
                 type="DefaultFormatBundle3D", class_names=class_names, with_label=False
             ),
-            dict(type="Collect3D", keys=["points", "gt_bboxes_3d", "gt_labels_3d"]),
+            # dict(type="Collect3D", keys=["points", "gt_bboxes_3d", "gt_labels_3d"]),
+            dict(type="Collect3D", keys=["points"]),
         ],
     ),
 ]
-eval_pipeline = [
-    dict(
-        type="LoadPointsFromFile",
-        coord_type="LIDAR",
-        load_dim=5,
-        use_dim=5,
-        file_client_args=file_client_args,
-    ),
-    dict(
-        type="LoadPointsFromMultiSweeps",
-        sweeps_num=9,
-        use_dim=[0, 1, 2, 3, 4],
-        file_client_args=file_client_args,
-        pad_empty_sweeps=True,
-        remove_close=True,
-    ),
-    dict(type="DefaultFormatBundle3D", class_names=class_names, with_label=False),
-    dict(type="Collect3D", keys=["points"]),
-]
+# eval_pipeline = [
+#     dict(
+#         type="LoadPointsFromFile",
+#         coord_type="LIDAR",
+#         load_dim=5,
+#         use_dim=5,
+#         file_client_args=file_client_args,
+#     ),
+#     dict(
+#         type="LoadPointsFromMultiSweeps",
+#         sweeps_num=9,
+#         use_dim=[0, 1, 2, 3, 4],
+#         file_client_args=file_client_args,
+#         pad_empty_sweeps=True,
+#         remove_close=True,
+#     ),
+#     dict(type="DefaultFormatBundle3D", class_names=class_names, with_label=False),
+#     dict(type="Collect3D", keys=["points"]),
+# ]
 data = dict(
     samples_per_gpu=2,
     train=dict(
@@ -369,7 +370,7 @@ data = dict(
     test=dict(
         pipeline=test_pipeline,
         classes=class_names,
-        ann_file=data_root + "nuscenes_infos_val.pkl",
+        ann_file=data_root + "nuscenes_infos_test.pkl",
     ),
 )
 evaluation = dict(interval=1)

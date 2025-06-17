@@ -527,9 +527,9 @@ class FUTR3D(MVXTwoStageDetector):
         )
         for result_dict, pts_bbox in zip(bbox_list, bbox_pts):
             result_dict["pts_bbox"] = pts_bbox
-        bbox_list[0]["pts_bbox"]["gt_bbox_3d"] = gt_bboxes_3d[0][
-            0
-        ]  # 添加GT框以便在3D可视化时使用
+        # bbox_list[0]["pts_bbox"]["gt_bbox_3d"] = gt_bboxes_3d[0][
+        #     0
+        # ]  # 添加GT框以便在3D可视化时使用
         return bbox_list
 
     def aug_test(self, img_metas, points=None, imgs=None, radar=None, rescale=False):

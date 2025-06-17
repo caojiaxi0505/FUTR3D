@@ -101,7 +101,7 @@ def main():
     else:
         distributed = True
         init_dist(args.launcher, **cfg.dist_params)
-    test_dataloader_default_args = dict(samples_per_gpu=1, workers_per_gpu=6, dist=distributed, shuffle=False)
+    test_dataloader_default_args = dict(samples_per_gpu=1, workers_per_gpu=2, dist=distributed, shuffle=False)
     if isinstance(cfg.data.test, dict):
         cfg.data.test.test_mode = True
         if cfg.data.test_dataloader.get('samples_per_gpu', 1) > 1:
