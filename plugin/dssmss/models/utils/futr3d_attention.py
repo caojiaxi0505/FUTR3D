@@ -18,7 +18,7 @@ from mmcv.ops.multi_scale_deform_attn import (
 from mmcv.runner.base_module import BaseModule
 from mmcv.utils import IS_CUDA_AVAILABLE, IS_MLU_AVAILABLE
 from mmdet.models.utils.builder import TRANSFORMER
-
+from plugin.dssmss.mamba.lidar_camera_fusion_mamba import LidarCameraFusionMamba, LidarCameraFusionMambaV2, LidarCameraFusionMambaBlock
 
 def inverse_sigmoid(x, eps=1e-5):
     x = x.clamp(min=0, max=1)
@@ -93,6 +93,8 @@ class FUTR3DAttention(BaseModule):
             self.fused_embed += embed_dims
         if self.use_camera:
             self.img_attention_weights = nn.Linear(embed_dims, num_cams * num_levels)
+            # 专为petr设计
+            # self.img_attention_weights = nn.Linear(embed_dims, num_cams * 2)
             self.img_output_proj = nn.Linear(embed_dims, embed_dims)
             self.position_encoder = nn.Sequential(
                 nn.Linear(3, self.embed_dims),
@@ -114,6 +116,7 @@ class FUTR3DAttention(BaseModule):
             self.fused_embed += radar_dims
 
         if self.fused_embed > embed_dims:
+            self.fused_embed += embed_dims
             self.modality_fusion_layer = nn.Sequential(
                 nn.Linear(self.fused_embed, self.embed_dims),
                 nn.LayerNorm(self.embed_dims),
@@ -122,6 +125,7 @@ class FUTR3DAttention(BaseModule):
                 nn.LayerNorm(self.embed_dims),
             )
         self.init_weights()
+        self.camera_mixer = LidarCameraFusionMambaBlock(num_layer=2, layer_type='fusion_v2', d_model=256)
 
     def init_weights(self):
         device = next(self.parameters()).device
@@ -173,36 +177,36 @@ class FUTR3DAttention(BaseModule):
         **kwargs,
     ):
         if value is None:
-            value = query
+            value = query       # value赋值query
         if identity is None:
-            identity = query
+            identity = query    # identity赋值初始query
         if query_pos is not None:
-            query = query + query_pos
+            query = query + query_pos   # 为query添加pe，pe是reference_points的sincospe+mlp
         if not self.batch_first:
             query = query.permute(1, 0, 2)
             value = value.permute(1, 0, 2)
         bs, num_query, _ = query.shape
         if self.use_lidar:
-            value = pts_feats
+            value = pts_feats   # with shape [bs, sum{hi*wi}, embed_dims], embed_dims=256
             bs, num_value, _ = value.shape
             assert (spatial_shapes[:, 0] * spatial_shapes[:, 1]).sum() == num_value
-            value = self.value_proj(value)
-            if key_padding_mask is not None:
+            value = self.value_proj(value)  # 对lidar_feats进行线性变换
+            if key_padding_mask is not None:    # key_padding_mask全为False，实际上并没有进行padding操作
                 value = value.masked_fill(key_padding_mask[..., None], 0.0)
-            value = value.view(bs, num_value, self.num_heads, -1)
+            value = value.view(bs, num_value, self.num_heads, -1)   # 转化为8头，每个头单独处理32维度
             sampling_offsets = self.sampling_offsets(query).view(
                 bs, num_query, self.num_heads, self.num_levels, self.num_points, 2
-            )
+            )   # 使用query生成偏移量，query的shape为bs,nq,c，经过linear变换后为bs,nq,c，reshape为bs,nq,nh,nl,np,2，注意c为256，nh*nl*np*2=8*4*4*2=256=c
             attention_weights = self.attention_weights(query).view(
                 bs, num_query, self.num_heads, self.num_levels * self.num_points
-            )
-            attention_weights = attention_weights.softmax(-1)
+            )   # 使用query生成注意力权重，即每个采样点提取特征的权重，经过linear变换后为bs,nq,c/2，reshape为bs,nh,nq,nl,np，注意nh*nq*nl*np=8*4*4=128=c/2
+            attention_weights = attention_weights.softmax(-1)   # 对nl,np维度做softmax，即多尺度提取出的特征权重和为1
             attention_weights = attention_weights.view(
                 bs, num_query, self.num_heads, self.num_levels, self.num_points
             )
             ref_points = reference_points.unsqueeze(2).expand(
                 -1, -1, self.num_levels, -1
-            )
+            )   # 这里的ref_points形状为bs,nq,3，表示三维坐标，已经经过sigmoid处理，范围在0-1之间
             ref_points = ref_points[..., :2]
             if ref_points.shape[-1] == 2:
                 offset_normalizer = torch.stack(
@@ -231,14 +235,18 @@ class FUTR3DAttention(BaseModule):
                 output = multi_scale_deformable_attn_pytorch(
                     value, spatial_shapes, sampling_locations, attention_weights
                 )
-            pts_output = self.output_proj(output)
+            pts_output = self.output_proj(output)   # 将输出再经过linear进行线性变换
         if self.use_camera:
             img_attention_weights = self.img_attention_weights(query).view(
                 bs, 1, num_query, self.num_cams, 1, self.num_levels
-            )
+            )   # 与lidar部分类似，得到权重，权重的形状为bs,1,nq,6,1,nl
+            # # 专为petr设计
+            # img_attention_weights = self.img_attention_weights(query).view(
+            #     bs, 1, num_query, self.num_cams, 1, 2
+            # )   # 与lidar部分类似，得到权重，权重的形状为bs,1,nq,6,1,nl
             reference_points_3d, img_output, mask = feature_sampling(
                 img_feats, reference_points, self.pc_range, kwargs["img_metas"]
-            )
+            )   # img_output的形状为bs,c,nq,6,1,nl，其中c=256，nq=4，6为相机数量，nl=4为特征层数
             img_output = torch.nan_to_num(img_output)
             mask = torch.nan_to_num(mask)
             img_attention_weights = (
@@ -302,7 +310,9 @@ class FUTR3DAttention(BaseModule):
             output = torch.cat((img_output, pts_output, radar_output), dim=2)
             output = self.modality_fusion_layer(output)
         elif self.use_lidar and self.use_camera:
-            output = torch.cat((img_output, pts_output), dim=2)
+            img_output_processed = self.camera_mixer(pts_output, img_output)
+            # output = torch.cat((img_output, pts_output), dim=2)
+            output = torch.cat((img_output_processed, img_output, pts_output), dim=2)
             output = self.modality_fusion_layer(output)
         elif self.use_camera and self.use_radar:
             output = torch.cat((img_output, radar_output), dim=2)
@@ -319,6 +329,7 @@ class FUTR3DAttention(BaseModule):
 
 
 def feature_sampling(mlvl_feats, reference_points, pc_range, img_metas):
+    # TODO: img_metas使用第一个batch，检查batch不为1的时候，img_metas[i]["img_shape"][0][1]和img_metas[i]["img_shape"][0][0]是否不一致
     lidar2img = []
     for img_meta in img_metas:
         lidar2img.append(img_meta["lidar2img"])

@@ -1,16 +1,16 @@
+# 通用设置
 .vscode/
+# build生成的文件不应该作为repo的一部分
 causal-conv1d/build
 mamba/build
-checkpoints/
+causal-conv1d/*.so
+# 数据集，权重不应该作为repo的一部分
 data/
+*.pth
+# setuptools自动生成的元数据目录不应该作为repo的一部分
 mmdet3d.egg-info/
 mmdet3d/.mim/
-show_dir/
-work_dirs/**/*.pth
-*.png
+# __pycache__不应该作为repo的一部分
 *.pyc
-causal-conv1d/*.so
-pretrained/
-results/**/*.pth
-
-.git_disabled/
+# trash不应该作为repo的一部分
+trash/

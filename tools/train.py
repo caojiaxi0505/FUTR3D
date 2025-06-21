@@ -20,10 +20,7 @@ from mmdet3d.models import build_model
 from mmdet3d.utils import collect_env, get_root_logger
 from mmseg import __version__ as mmseg_version
 from os import path as osp
-try:
-    from mmdet.utils import setup_multi_processes
-except ImportError:
-    from mmdet3d.utils import setup_multi_processes
+from mmdet.utils import setup_multi_processes
 import torch.nn as nn
 
 
@@ -41,20 +38,20 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=0, help='随机种子')
     parser.add_argument('--diff-seed', action='store_true', help='是否为不同rank设置不同的种子')
     parser.add_argument('--deterministic', action='store_true', help='是否为CUDNN后端设置确定性选项')
-    parser.add_argument('--options', nargs='+', action=DictAction, help='覆盖使用的配置中的某些设置，格式为xxx=yyy的键值对将合并到配置文件中。如果要覆盖的值是一个列表，它应该像key="[a,b]"或key=a,b它还允许嵌套列表/元组值，例如key="[(a,b),(c,d)]"注意，引号是必要的，并且不允许空格')
+    # parser.add_argument('--options', nargs='+', action=DictAction, help='覆盖使用的配置中的某些设置，格式为xxx=yyy的键值对将合并到配置文件中。如果要覆盖的值是一个列表，它应该像key="[a,b]"或key=a,b它还允许嵌套列表/元组值，例如key="[(a,b),(c,d)]"注意，引号是必要的，并且不允许空格')
     parser.add_argument('--cfg-options', nargs='+', action=DictAction, help='覆盖使用的配置中的某些设置，格式为xxx=yyy的键值对将合并到配置文件中。如果要覆盖的值是一个列表，它应该像key="[a,b]"或key=a,b它还允许嵌套列表/元组值，例如key="[(a,b),(c,d)]"注意，引号是必要的，并且不允许空格')
     parser.add_argument('--launcher', choices=['none', 'pytorch', 'slurm', 'mpi'], default='none', help='job launcher')
     parser.add_argument('--local_rank', type=int, default=0)
-    parser.add_argument('--autoscale-lr', action='store_true', help='自动缩放学习率与gpu数量')
+    parser.add_argument('--autoscale-lr', type=lambda x: {'true': True, 'false': False}[str(x).lower()], default=True, help='是否自动缩放学习率与gpu数量 (true/false, 默认: true)')
     parser.add_argument('--extra-tag', default='default', help='添加额外说明，影响保存路径')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
-    if args.options and args.cfg_options:
-        raise ValueError('不能同时指定--options和--cfg-options，--options已弃用，请使用--cfg-options')
-    if args.options:
-        warnings.warn('--options已弃用，请使用--cfg-options')
-        args.cfg_options = args.options
+    # if args.options and args.cfg_options:
+    #     raise ValueError('不能同时指定--options和--cfg-options，--options已弃用，请使用--cfg-options')
+    # if args.options:
+    #     warnings.warn('--options已弃用，请使用--cfg-options')
+    #     args.cfg_options = args.options
     return args
 
 
@@ -64,9 +61,20 @@ def main():
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
     setup_multi_processes(cfg)
+    # 默认不启用cudnn_benchmark，如需启用在config中添加cudnn_benchmark=True
     if cfg.get('cudnn_benchmark', False):
         torch.backends.cudnn.benchmark = True
+    # if hasattr(cfg, 'plugin'):
+    #     _module_dir = os.path.dirname(args.config)  # plugin/dssmss/configs/split1
+    #     _module_dir = _module_dir.split('/')        # ['plugin', 'dssmss', 'configs', 'split1']
+    #     _module_path = _module_dir[0]               # 'plugin'
+    #     # 处理后为'plugin.dssmss.configs.split1'
+    #     for m in _module_dir[1:]:
+    #         _module_path = _module_path + '.' + m
+    #     print(f"加载plugin module：{_module_path}")
+    #     plg_lib = importlib.import_module(_module_path)
     if hasattr(cfg, 'plugin'):
+        # 会走这个分支
         if cfg.plugin:
             if hasattr(cfg, 'plugin_dir'):
                 plugin_dir = cfg.plugin_dir
@@ -77,6 +85,7 @@ def main():
                     _module_path = _module_path + '.' + m
                 print(_module_path)
                 plg_lib = importlib.import_module(_module_path)
+            # 会走这个分支
             else:
                 _module_dir = os.path.dirname(args.config)
                 _module_dir = _module_dir.split('/')
@@ -103,10 +112,12 @@ def main():
     if args.gpus is None and args.gpu_ids is None:
         cfg.gpu_ids = [args.gpu_id]
     if args.autoscale_lr:
-        # 根据CUDA_VISIBLE_DEVICES和cfg.data.samples_per_gpu自动缩放学习率，默认8个GPU，4个样本/GPU
+        # 根据CUDA_VISIBLE_DEVICES和cfg.data.samples_per_gpu自动缩放学习率
+        # lidar detector默认8个GPU，4个样本/GPU
+        # fusion detector默认8个GPU，1个样本/GPU
         # cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 4
         cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 1 * 2
-
+    # 是否开启分布式训练
     if args.launcher == 'none':
         distributed = False
     else:
@@ -122,6 +133,7 @@ def main():
         logger_name = 'mmseg'
     else:
         logger_name = 'mmdet'
+    # 日志
     logger = get_root_logger(log_file=log_file, log_level=cfg.log_level, name=logger_name)
     meta = dict()
     env_info_dict = collect_env()
@@ -140,8 +152,11 @@ def main():
     meta['seed'] = seed
     meta['exp_name'] = osp.basename(args.config)
     model = build_model(cfg.model, train_cfg=cfg.get('train_cfg'), test_cfg=cfg.get('test_cfg'))
-    # model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model.init_weights()
+    # 将所有BatchNorm层都转化为SyncBatchNorm层，可能是BN1D，BN2D或BN3D
+    if distributed:
+        logger.info('使用SyncBN')
+        model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     logger.info(f'Model:\n{model}')
     datasets = [build_dataset(cfg.data.train)]
     if len(cfg.workflow) == 2:

@@ -85,18 +85,6 @@ class FUTR3D(MVXTwoStageDetector):
             self.radar_middle_encoder = builder.build_middle_encoder(
                 radar_middle_encoder
             )
-        # ---------------- 弃用的方法 ----------------
-        use_mss = pts_bbox_head.get("use_mss", False)
-        mss_num_scales = pts_bbox_head.get("mss_num_scales", 4)
-        mss_fore_pred_net_in_channels = pts_bbox_head.get("out_channels", 256)
-        mss_fore_pred_net_intermediate_channels = pts_bbox_head.get(
-            "mss_fore_pred_net_intermediate_channels", 128
-        )
-        mss_fore_pred_net_out_channels = pts_bbox_head.get(
-            "mss_fore_pred_net_out_channels", 1
-        )
-        mss_dstate = pts_bbox_head.get("mss_dstate", 4)
-        # ---------------- 弃用的方法 ----------------
         if pts_bbox_head:
             pts_train_cfg = train_cfg.pts if train_cfg else None
             pts_bbox_head.update(train_cfg=pts_train_cfg)
@@ -118,7 +106,18 @@ class FUTR3D(MVXTwoStageDetector):
             self._freeze_backbone()
         self.pts_voxel_layer_cfg = pts_voxel_layer
         self.pts_voxel_encoder_cfg = pts_voxel_encoder
-        # ---------------- 弃用的方法 ----------------
+        # ---------------- 已弃用 ----------------
+        use_mss = pts_bbox_head.get("use_mss", False)
+        mss_num_scales = pts_bbox_head.get("mss_num_scales", 4)
+        mss_fore_pred_net_in_channels = pts_bbox_head.get("out_channels", 256)
+        mss_fore_pred_net_intermediate_channels = pts_bbox_head.get(
+            "mss_fore_pred_net_intermediate_channels", 128
+        )
+        mss_fore_pred_net_out_channels = pts_bbox_head.get(
+            "mss_fore_pred_net_out_channels", 1
+        )
+        mss_dstate = pts_bbox_head.get("mss_dstate", 4)
+        # ---------------- 已弃用 ----------------
         self.use_mss = False
         if use_mss:
             self.use_mss = use_mss
@@ -128,7 +127,7 @@ class FUTR3D(MVXTwoStageDetector):
                 d_model=mss_fore_pred_net_in_channels, d_state=mss_dstate
             )
             self.batch_norm = nn.BatchNorm2d(mss_fore_pred_net_in_channels)
-        # ---------------- 弃用的方法 ----------------
+        # ---------------- 已弃用 ----------------
 
     def _freeze_backbone(self):
         for modules in [
@@ -154,6 +153,39 @@ class FUTR3D(MVXTwoStageDetector):
             elif img.dim() == 5 and img.size(0) > 1:
                 B, N, C, H, W = img.size()
                 img = img.view(B * N, C, H, W)
+            if self.use_grid_mask:
+                img = self.grid_mask(img)
+            img_feats = self.img_backbone(img)
+            if isinstance(img_feats, dict):
+                img_feats = list(img_feats.values())
+        else:
+            return None
+        if self.with_img_neck:
+            img_feats = self.img_neck(img_feats)
+        img_feats_reshaped = []
+        for img_feat in img_feats:
+            BN, C, H, W = img_feat.size()
+            img_feats_reshaped.append(img_feat.view(B, int(BN / B), C, H, W))
+        return img_feats_reshaped
+
+    def extract_img_feat_petr(self, img, img_metas):
+        """Extract features of images."""
+        # print(img[0].size())
+        if isinstance(img, list):
+            img = torch.stack(img, dim=0)
+
+        B = img.size(0)
+        if img is not None:
+            input_shape = img.shape[-2:]
+            # update real input shape of each single img
+            for img_meta in img_metas:
+                img_meta.update(input_shape=input_shape)
+            if img.dim() == 5:
+                if img.size(0) == 1 and img.size(1) != 1:
+                    img.squeeze_()
+                else:
+                    B, N, C, H, W = img.size()
+                    img = img.view(B * N, C, H, W)
             if self.use_grid_mask:
                 img = self.grid_mask(img)
             img_feats = self.img_backbone(img)
@@ -217,10 +249,9 @@ class FUTR3D(MVXTwoStageDetector):
 
     def extract_feat(self, points, img, radar, img_metas):
         img_feats = self.extract_img_feat(img, img_metas) if self.use_camera else None
+        # img_feats = self.extract_img_feat_petr(img, img_metas) if self.use_camera else None
         pts_feats = self.extract_pts_feat(points) if self.use_lidar else None
-        radar_feats = (
-            self.extract_radar_feat(radar, img_metas) if self.use_radar else None
-        )
+        radar_feats = (self.extract_radar_feat(radar, img_metas) if self.use_radar else None)
         return (img_feats, pts_feats, radar_feats)
 
     def plt_heatmap(self, x, coors=None, name="default"):
@@ -431,6 +462,7 @@ class FUTR3D(MVXTwoStageDetector):
         points = [points] if points is None else points
         radar = [radar] if radar is None else radar
         return self.simple_test(img_metas[0], points[0], img[0], radar[0], **kwargs)
+        # return self.aug_test(img_metas, points, None, None, **kwargs)
 
     def dummy_forward(self, img_metas, img=None, radar=None, points=None):
         for var, name in [(img_metas, "img_metas")]:
@@ -538,32 +570,69 @@ class FUTR3D(MVXTwoStageDetector):
         #     0
         # ]  # 添加GT框以便在3D可视化时使用
         return bbox_list
-
+    
     def aug_test(self, img_metas, points=None, imgs=None, radar=None, rescale=False):
         """Test function with augmentaiton."""
-        img_feats, pts_feats = self.extract_feats(points, img_metas, imgs)
+        img_feats=[]
+        pts_feats=[]
+        radar_feats=[]
+        for i in range(len(img_metas)):
+            img_feat, pts_feat, radar_feat = self.extract_feat(
+                points=points[i], img=None if imgs==imgs else imgs[i], radar=radar if radar==None else radar[i], img_metas=img_metas[i]
+            )
+            img_feats.append(img_feat)
+            pts_feats.append(pts_feat)
+            radar_feats.append(radar_feat)
+        
         bbox_list = dict()
         if pts_feats and self.with_pts_bbox:
-            bbox_pts = self.aug_test_pts(pts_feats, img_metas, rescale)
-            bbox_list.update(pts_bbox=bbox_pts)
+            bbox_pts = self.aug_test_pts(pts_feats, img_feats, radar_feats, img_metas, rescale)
+            bbox_list["pts_bbox"] = bbox_pts
         return [bbox_list]
 
-    def aug_test_pts(self, feats, img_metas, rescale=False):
-        """Test function of point cloud branch with augmentaiton."""
+    def aug_test_pts(self, pts_feats, img_feats, radar_feats, img_metas, rescale=False):
         # only support aug_test for one sample
         aug_bboxes = []
-        for x, img_meta in zip(feats, img_metas):
-            outs = self.pts_bbox_head(x)
+        for pts_feat, img_feat, radar_feat, img_meta in zip(pts_feats, img_feats, radar_feats, img_metas):
+            outputs_classes, outputs_coords, aux_outs, fore_pred = self.pts_bbox_head(
+                pts_feat, img_feat, radar_feat, img_meta
+            )
+            outs = (outputs_classes, outputs_coords)
             bbox_list = self.pts_bbox_head.get_bboxes(*outs, img_meta, rescale=rescale)
-            bbox_list = [
-                dict(boxes_3d=bboxes, scores_3d=scores, labels_3d=labels)
+            bbox_results = [
+                bbox3d2result(bboxes, scores, labels)
                 for bboxes, scores, labels in bbox_list
             ]
-            aug_bboxes.append(bbox_list[0])
+            aug_bboxes.append(bbox_results[0])
+        # # 构造增强测试所需的img_metas，添加必要的键
+        # aug_img_metas = []
+        # for i, img_meta in enumerate(img_metas if isinstance(img_metas, list) else [img_metas]):
+        #     aug_img_meta = [{
+        #         'pcd_scale_factor': 1.0,
+        #         'pcd_horizontal_flip': False,
+        #         'pcd_vertical_flip': False
+        #     }]
+        #     aug_img_metas.append(aug_img_meta)
+        # # 如果aug_img_metas为空，添加默认元素
+        # if len(aug_img_metas) == 0:
+        #     aug_img_metas = [[{
+        #         'pcd_scale_factor': 1.0,
+        #         'pcd_horizontal_flip': False,
+        #         'pcd_vertical_flip': False
+        #     }]]
+        # # 确保test_cfg包含所需的属性
+        # from mmcv.utils import ConfigDict
+        # test_cfg = self.pts_bbox_head.test_cfg
+        # if not hasattr(test_cfg, 'use_rotate_nms'):
+        #     test_cfg = ConfigDict({
+        #         'use_rotate_nms': True,
+        #         'nms_thr': 0.1,
+        #         'max_num': 500
+        #     })
         merged_bboxes = merge_aug_bboxes_3d(
             aug_bboxes, img_metas, self.pts_bbox_head.test_cfg
         )
-        return merged_bboxes
+        return merged_bboxes  # 与simple_test_pts返回格式保持一致
 
     def show_results(self, data, result, out_dir):
         for batch_id in range(len(result)):

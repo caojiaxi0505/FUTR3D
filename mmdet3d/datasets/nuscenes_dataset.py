@@ -130,8 +130,58 @@ class NuScenesDataset(Custom3DDataset):
                     lidar2img=lidar2img_rts,
                     camera2lidar=camera2lidar_rts,
                 ))
-        annos = self.get_ann_info(index)
-        input_dict['ann_info'] = annos
+        # if self.modality['use_camera']:
+        #     image_paths = []
+        #     lidar2img_rts = []
+        #     camera2lidar_rts = []  # 来自版本1
+        #     intrinsics = []         # 来自版本2
+        #     extrinsics = []         # 来自版本2
+        #     img_timestamp = []      # 来自版本2
+
+        #     for cam_type, cam_info in info['cams'].items():
+        #         # 来自版本2的功能
+        #         if 'timestamp' in cam_info:  # 确保时间戳存在
+        #             img_timestamp.append(cam_info['timestamp'] / 1e6)
+                
+        #         image_paths.append(cam_info['data_path'])
+
+        #         # lidar 到图像的转换矩阵 (共同逻辑)
+        #         lidar2cam_r = np.linalg.inv(cam_info['sensor2lidar_rotation'])
+        #         lidar2cam_t = cam_info['sensor2lidar_translation'] @ lidar2cam_r.T
+        #         lidar2cam_rt = np.eye(4)
+        #         lidar2cam_rt[:3, :3] = lidar2cam_r.T
+        #         lidar2cam_rt[3, :3] = -lidar2cam_t
+                
+        #         intrinsic = cam_info['cam_intrinsic']
+        #         viewpad = np.eye(4)
+        #         viewpad[:intrinsic.shape[0], :intrinsic.shape[1]] = intrinsic
+        #         lidar2img_rt = (viewpad @ lidar2cam_rt.T)
+                
+        #         lidar2img_rts.append(lidar2img_rt)
+
+        #         # 来自版本2的功能
+        #         intrinsics.append(viewpad)
+        #         extrinsics.append(lidar2cam_rt) ### The extrinsics mean the tranformation from lidar to camera. If anyone want to use the extrinsics as sensor to lidar, please use np.linalg.inv(lidar2cam_rt.T) and modify the ResizeCropFlipImage and LoadMultiViewImageFromMultiSweepsFiles.
+
+        #         # 来自版本1的功能
+        #         camera2lidar = np.eye(4).astype(np.float32)
+        #         camera2lidar[:3, :3] = cam_info["sensor2lidar_rotation"]
+        #         camera2lidar[:3, 3] = cam_info["sensor2lidar_translation"]
+        #         camera2lidar_rts.append(camera2lidar)
+
+        #     input_dict.update(
+        #         dict(
+        #             img_filename=image_paths,
+        #             lidar2img=lidar2img_rts,
+        #             camera2lidar=camera2lidar_rts,  # 来自版本1
+        #             img_timestamp=img_timestamp,    # 来自版本2
+        #             intrinsics=intrinsics,          # 来自版本2
+        #             extrinsics=extrinsics           # 来自版本2
+        #         ))
+
+        if not self.test_mode:
+            annos = self.get_ann_info(index)
+            input_dict['ann_info'] = annos
         return input_dict
 
     def get_ann_info(self, index):

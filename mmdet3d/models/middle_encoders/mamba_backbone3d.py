@@ -1,4 +1,4 @@
-# 说明：该文件是LION的依赖
+# ---- 该文件是LION的依赖 ----
 import spconv.pytorch as spconv
 from functools import partial
 import torch.nn as nn

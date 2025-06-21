@@ -423,5 +423,5 @@ lr_config = dict(
 )
 checkpoint_config = dict(interval=1, max_keep_ckpts=1)
 
-# load_from = 'checkpoint/lidar_0075_cam_res101.pth'
-load_from = "checkpoints/fuse.pth"
+load_from = 'checkpoint/lidar_0075_cam_res101.pth'
+# load_from = "checkpoints/fuse.pth"

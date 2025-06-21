@@ -1,4 +1,4 @@
-# 说明：该文件是LION的依赖
+# ---- 该文件是LION的依赖 ----
 from functools import partial
 import math
 import numpy as np

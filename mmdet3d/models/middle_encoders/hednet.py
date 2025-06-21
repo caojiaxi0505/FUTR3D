@@ -74,13 +74,19 @@ class SparseBasicBlock(spconv.SparseModule):
         self.bn2 = norm_fn(planes)
 
     def forward(self, x):
-        out = self.conv1(x)
-        out = out.replace_feature(self.bn1(out.features))
-        out = out.replace_feature(self.relu(out.features))
+        # out = self.conv1(x)
+        # out = out.replace_feature(self.bn1(out.features))
+        # out = out.replace_feature(self.relu(out.features))
 
+        # out = self.conv2(out)
+        # out = out.replace_feature(self.bn2(out.features))
+        # out = out.replace_feature(self.relu(out.features + x.features))
+        out = self.conv1(x)
+        new_features = self.relu(self.bn1(out.features))
+        out = out.replace_feature(new_features)
         out = self.conv2(out)
-        out = out.replace_feature(self.bn2(out.features))
-        out = out.replace_feature(self.relu(out.features + x.features))
+        new_features = self.relu(self.bn2(out.features))
+        out = out.replace_feature(new_features)
         return out
 
 
@@ -167,9 +173,12 @@ class SEDLayer(spconv.SparseModule):
         for deconv, norm, up_x in zip(
             self.decoder, self.decoder_norm, features[:-1][::-1]
         ):
+            # x = deconv(x)
+            # x = x.replace_feature(x.features + up_x.features)
+            # x = x.replace_feature(norm(x.features))
             x = deconv(x)
-            x = x.replace_feature(x.features + up_x.features)
-            x = x.replace_feature(norm(x.features))
+            new_features = norm(x.features + up_x.features)
+            x = x.replace_feature(new_features)
         return x
 
 

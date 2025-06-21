@@ -202,10 +202,13 @@ model = dict(
             nms_type="circle",
             pre_max_size=1000,
             post_max_size=83,
-            nms_thr=0.2,
+            # nms_thr=0.2,
             max_num=300,
-            score_threshold=0,
+            # score_threshold=0,
             post_center_range=[-61.2, -61.2, -10.0, 61.2, 61.2, 10.0],
+            use_rotate_nms=True,
+            nms_thr=0.1,
+            score_threshold=0.05
         )
     ),
 )
@@ -305,12 +308,15 @@ test_pipeline = [
         pad_empty_sweeps=True,
         remove_close=True,
     ),
-    # dict(type="LoadAnnotations3D", with_bbox_3d=True, with_label_3d=True),
     dict(
         type="MultiScaleFlipAug3D",
         img_scale=(1333, 800),
-        pts_scale_ratio=1,
-        flip=False,
+        # pts_scale_ratio=1,
+        pts_scale_ratio=[1.,1.06,0.96],
+        # flip=False,
+        flip=True,
+        pcd_horizontal_flip=True,
+        pcd_vertical_flip=True,
         transforms=[
             dict(
                 type="GlobalRotScaleTrans",
@@ -323,30 +329,10 @@ test_pipeline = [
             dict(
                 type="DefaultFormatBundle3D", class_names=class_names, with_label=False
             ),
-            # dict(type="Collect3D", keys=["points", "gt_bboxes_3d", "gt_labels_3d"]),
             dict(type="Collect3D", keys=["points"]),
         ],
     ),
 ]
-# eval_pipeline = [
-#     dict(
-#         type="LoadPointsFromFile",
-#         coord_type="LIDAR",
-#         load_dim=5,
-#         use_dim=5,
-#         file_client_args=file_client_args,
-#     ),
-#     dict(
-#         type="LoadPointsFromMultiSweeps",
-#         sweeps_num=9,
-#         use_dim=[0, 1, 2, 3, 4],
-#         file_client_args=file_client_args,
-#         pad_empty_sweeps=True,
-#         remove_close=True,
-#     ),
-#     dict(type="DefaultFormatBundle3D", class_names=class_names, with_label=False),
-#     dict(type="Collect3D", keys=["points"]),
-# ]
 data = dict(
     samples_per_gpu=2,
     train=dict(

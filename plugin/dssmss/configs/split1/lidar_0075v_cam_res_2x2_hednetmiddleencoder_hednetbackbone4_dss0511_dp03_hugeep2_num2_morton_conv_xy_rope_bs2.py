@@ -402,7 +402,7 @@ data = dict(
     test=dict(
         pipeline=test_pipeline,
         classes=class_names,
-        ann_file=data_root + "nuscenes_infos_val.pkl",
+        ann_file=data_root + "nuscenes_infos_test.pkl",
         modality=input_modality,
     ),
 )
@@ -438,3 +438,4 @@ checkpoint_config = dict(interval=1, max_keep_ckpts=1)
 
 # load_from = 'checkpoint/lidar_0075_cam_res101.pth'
 load_from = "pretrained/hedres_forced.pth"
+cudnn_benchmark = True
