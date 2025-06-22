@@ -136,11 +136,11 @@ class CascadeDEDBackbone(nn.Module):
             input_dim = in_channels if idx == 0 else model_cfg["FEATURE_DIM"]
             self.layers.append(DEDBackbone(model_cfg, input_dim))
         self.num_bev_features = self.layers[0].num_bev_features
-        if model_cfg["USE_SECONDMAMBA"]:
-            self.use_seconddmamba = True
+        if model_cfg.get("USE_SECONDMAMBA", False):
+            self.use_secondmamba = True
             self.secondmamba = nn.Sequential(*[SECONDMamba() for _ in range(model_cfg["SECONDMAMBA_NUM_LAYERS"])])
         else:
-            self.use_seconddmamba = False
+            self.use_secondmamba = False
 
     def init_weights(self, pretrained=None):
         pass
@@ -148,7 +148,7 @@ class CascadeDEDBackbone(nn.Module):
     def forward(self, x):
         for layer in self.layers:
             x = layer(x)
-        if self.use_seconddmamba:
+        if self.use_secondmamba:
             x = self.secondmamba(x)
         if isinstance(x, tuple):
             return x
