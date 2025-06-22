@@ -116,6 +116,7 @@ def main():
         # lidar detector默认8个GPU，4个样本/GPU
         # fusion detector默认8个GPU，1个样本/GPU
         # cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 4
+        print('使用线性缩放')
         cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 1 * 2
     # 是否开启分布式训练
     if args.launcher == 'none':

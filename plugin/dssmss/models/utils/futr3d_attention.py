@@ -18,7 +18,9 @@ from mmcv.ops.multi_scale_deform_attn import (
 from mmcv.runner.base_module import BaseModule
 from mmcv.utils import IS_CUDA_AVAILABLE, IS_MLU_AVAILABLE
 from mmdet.models.utils.builder import TRANSFORMER
-from plugin.dssmss.mamba.lidar_camera_fusion_mamba import LidarCameraFusionMamba, LidarCameraFusionMambaV2, LidarCameraFusionMambaBlock
+from plugin.dssmss.mamba.lidar_camera_fusion_mamba import LidarCameraFusionMamba,\
+    LidarCameraFusionMambaV2, LidarCameraFusionMambaBlock, LidarCameraFusionMambaBlockV2, \
+    LidarCameraFusionMambaBlockV4
 
 def inverse_sigmoid(x, eps=1e-5):
     x = x.clamp(min=0, max=1)
@@ -125,7 +127,8 @@ class FUTR3DAttention(BaseModule):
                 nn.LayerNorm(self.embed_dims),
             )
         self.init_weights()
-        self.camera_mixer = LidarCameraFusionMambaBlock(num_layer=2, layer_type='fusion_v2', d_model=256)
+        # self.camera_mixer = LidarCameraFusionMambaBlockV4(num_layer=2, d_model=256, d_state=32)
+        self.camera_mixer = LidarCameraFusionMambaBlock(num_layer=2,layer_type='fusion_v2',d_model=256)
 
     def init_weights(self):
         device = next(self.parameters()).device
