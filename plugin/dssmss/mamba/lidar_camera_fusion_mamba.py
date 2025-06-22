@@ -965,75 +965,6 @@ class LidarCameraFusionMambaV3(nn.Module):
 
         return output_camera_feats
 
-if __name__ == '__main__':
-    # Example Usage
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
-
-    batch_size = 2
-    seq_len = 50 # Reduced for faster mock testing
-    d_model_size = 64
-    d_state_size = 8
-    d_conv_size = 4
-    expand_factor = 2
-
-    # Instantiate LidarCameraFusionMambaV2
-    fusion_mamba_v2 = LidarCameraFusionMambaV2(
-        d_model=d_model_size,
-        d_state=d_state_size,
-        d_conv=d_conv_size,
-        expand=expand_factor,
-        device=device,
-        dtype=torch.float32
-    ).to(device)
-
-    lidar_features = torch.randn(batch_size, seq_len, d_model_size, device=device, dtype=torch.float32)
-    camera_features = torch.randn(batch_size, seq_len, d_model_size, device=device, dtype=torch.float32)
-
-    try:
-        print("\nTesting LidarCameraFusionMambaV2...")
-        output_features_v2 = fusion_mamba_v2(lidar_features, camera_features)
-        print("LidarCameraFusionMambaV2 instantiated and forward pass completed.")
-        print("Input camera shape:", camera_features.shape)
-        print("Output camera shape (V2):", output_features_v2.shape)
-        assert output_features_v2.shape == camera_features.shape
-        print("Shape assertion passed for V2.")
-
-        # Test with a previous LidarCameraFusionMamba if available (for comparison or context)
-        # Assuming LidarCameraFusionMamba (V1) is defined in the same scope or imported
-        # from your previous code block.
-        # For this test, we need its definition.
-        # If LidarCameraFusionMamba is not defined, this part will error or should be skipped.
-        try:
-            from plugin.dssmss.mamba.lidar_camera_fusion_mamba import LidarCameraFusionMamba # Assuming V1 is here
-            print("\nTesting LidarCameraFusionMamba (V1 for comparison, if available)...")
-            fusion_mamba_v1 = LidarCameraFusionMamba(
-                d_model=d_model_size,
-                d_state=d_state_size,
-                d_conv=d_conv_size, # V1 also uses d_conv
-                expand=expand_factor,
-                device=device,
-                dtype=torch.float32
-            ).to(device)
-            output_features_v1 = fusion_mamba_v1(lidar_features, camera_features)
-            print("LidarCameraFusionMamba (V1) forward pass completed.")
-            print("Output camera shape (V1):", output_features_v1.shape)
-            assert output_features_v1.shape == camera_features.shape
-        except ImportError:
-            print("Skipping V1 comparison as LidarCameraFusionMamba definition not found.")
-        except NameError:
-             print("Skipping V1 comparison as LidarCameraFusionMamba definition not found.")
-        except Exception as e_v1:
-            print(f"Error during V1 test: {e_v1}")
-
-
-    except NotImplementedError as e:
-        print(f"NotImplementedError during V2 example usage: {e}. This likely means selective_scan_fn is mocked and hit a path not fully implemented in mock.")
-    except Exception as e:
-        print(f"An error occurred during V2 example usage: {e}")
-        import traceback
-        traceback.print_exc()
-
 
 class FeedForwardNetwork(nn.Module):
     """
@@ -1074,6 +1005,7 @@ class LidarCameraFusionMambaBlockV4(nn.Module):
         d_state=16,
         expand=2,
         drop_prob=0.2,
+        ffn_dropout=0.1,
         batch_first=True,
         prenorm=True,
         device=None,
@@ -1135,6 +1067,12 @@ class LidarCameraFusionMambaBlockV4(nn.Module):
         self.prenorm = prenorm
         self.norm_output = nn.LayerNorm(d_model, eps=1e-6, elementwise_affine=True, device=device, dtype=dtype) if prenorm else nn.Identity()
         self.batch_first = batch_first
+        self.camera_ffn = nn.ModuleList(
+            [FeedForwardNetwork(d_model, d_model*4, ffn_dropout) for _ in range(num_layer)]
+        )
+        self.camera_ffn_norm = nn.ModuleList(
+            [nn.LayerNorm(d_model, eps=1e-6, elementwise_affine=True, device=device, dtype=dtype) for _ in range(num_layer)]
+        )
         # for _ in range(num_layer):
     
     def forward(
@@ -1158,7 +1096,8 @@ class LidarCameraFusionMambaBlockV4(nn.Module):
                 camera_query = self.lidar_guide_camera_fusion[layer_idx](fuse_query, camera_query)
                 # camera_query = self.dropout[layer_idx](camera_query) + residual_cam
                 camera_query = self.dropout[layer_idx](camera_query)
-            
+                camera_query = self.camera_ffn_norm[layer_idx](camera_query)
+                camera_query = self.camera_ffn[layer_idx](camera_query)
             else:
                 residual_fuse = fuse_query
                 fuse_query = self.lidar_camera_fuse_layer[layer_idx](torch.cat([fuse_query, camera_query], dim=-1))
@@ -1168,6 +1107,8 @@ class LidarCameraFusionMambaBlockV4(nn.Module):
                 # camera_query = self.dropout[layer_idx](camera_query) + residual_cam
                 camera_query = self.dropout[layer_idx](camera_query)
                 camera_query = self.norm_fusion_camera[layer_idx](camera_query)
+                camera_query = self.camera_ffn[layer_idx](camera_query)
+                camera_query = self.camera_ffn_norm[layer_idx](camera_query)
         # camera_query = identity_cam + self.dropout_output(camera_query)
         # camera_query = self.dropout_output(camera_query)
         camera_query = self.norm_output(camera_query)
