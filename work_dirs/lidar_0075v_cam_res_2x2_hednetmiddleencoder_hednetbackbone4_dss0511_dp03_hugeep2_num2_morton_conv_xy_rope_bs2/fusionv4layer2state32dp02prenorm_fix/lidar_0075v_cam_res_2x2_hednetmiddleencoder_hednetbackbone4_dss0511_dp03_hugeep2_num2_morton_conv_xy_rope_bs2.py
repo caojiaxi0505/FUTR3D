@@ -355,8 +355,8 @@ log_config = dict(
            dict(type='TensorboardLoggerHook')])
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/lidar_0075v_cam_res_2x2_hednetmiddleencoder_hednetbackbone4_dss0511_dp03_hugeep2_num2_morton_conv_xy_rope_bs2/default'
-load_from = 'pretrained/s2mm-det-res101-fused.pth'
+work_dir = './work_dirs/lidar_0075v_cam_res_2x2_hednetmiddleencoder_hednetbackbone4_dss0511_dp03_hugeep2_num2_morton_conv_xy_rope_bs2/fusionv4layer2state32dp02prenorm_fix'
+load_from = 'pretrained/hedres_forced.pth'
 resume_from = None
 workflow = [('train', 1)]
 opencv_num_threads = 0
