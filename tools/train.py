@@ -117,7 +117,8 @@ def main():
         # fusion detector默认8个GPU，1个样本/GPU
         # cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 4
         print('使用线性缩放')
-        cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 1 * 2
+        cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 1
+        # cfg.optimizer['lr'] = cfg.optimizer['lr'] * len(os.getenv("CUDA_VISIBLE_DEVICES").split(",")) / 8 * cfg.data.samples_per_gpu / 1 * 2
     # 是否开启分布式训练
     if args.launcher == 'none':
         distributed = False
@@ -155,9 +156,9 @@ def main():
     model = build_model(cfg.model, train_cfg=cfg.get('train_cfg'), test_cfg=cfg.get('test_cfg'))
     model.init_weights()
     # 将所有BatchNorm层都转化为SyncBatchNorm层，可能是BN1D，BN2D或BN3D
-    if distributed:
-        logger.info('使用SyncBN')
-        model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
+    # if distributed:
+    #     logger.info('使用SyncBN')
+    #     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     logger.info(f'Model:\n{model}')
     datasets = [build_dataset(cfg.data.train)]
     if len(cfg.workflow) == 2:

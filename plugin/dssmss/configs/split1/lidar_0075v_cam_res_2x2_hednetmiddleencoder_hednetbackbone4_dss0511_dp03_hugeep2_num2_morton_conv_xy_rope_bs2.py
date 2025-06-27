@@ -437,5 +437,6 @@ lr_config = dict(
 checkpoint_config = dict(interval=1, max_keep_ckpts=1)
 
 # load_from = 'checkpoint/lidar_0075_cam_res101.pth'
-load_from = "pretrained/hedres_forced.pth"
+# load_from = "pretrained/hedres_forced.pth"
+load_from = "pretrained/s2mm-det-res101-fused.pth"
 cudnn_benchmark = True

@@ -123,6 +123,7 @@ class LidarCameraFusionMambaBlockV2(nn.Module):
                  d_conv=4, # Added d_conv here
                  expand=2, # Added expand here
                  drop_prob=0.1, 
+                 ffn_dropout = 0.1,
                  batch_first=True, 
                  prenorm=False,
                  # Removed pe_each_layer as per comment "没有pe"
@@ -191,7 +192,7 @@ class LidarCameraFusionMambaBlockV2(nn.Module):
         self.batch_first = batch_first
         self.prenorm = prenorm
 
-        ffn_dropout = 0.1
+        
         self.ffn_block_L = nn.ModuleList(
             FeedForwardNetwork(d_model, d_model*4, ffn_dropout) for _ in range(num_layer)
         )
@@ -1089,23 +1090,20 @@ class LidarCameraFusionMambaBlockV4(nn.Module):
             # pts_query: (batch, seqlen, d_model)
             # camera_query: (batch, seqlen, d_model)
             if self.prenorm:
+                residual_cam = camera_query
                 fuse_query = self.lidar_camera_fuse_layer[layer_idx](torch.cat([fuse_query, camera_query], dim=-1))
-                # residual_cam = camera_query
                 fuse_query = self.norm_fusion_fuse[layer_idx](fuse_query)
                 camera_query = self.norm_fusion_camera[layer_idx](camera_query)
                 camera_query = self.lidar_guide_camera_fusion[layer_idx](fuse_query, camera_query)
-                # camera_query = self.dropout[layer_idx](camera_query) + residual_cam
-                camera_query = self.dropout[layer_idx](camera_query)
+                camera_query = self.dropout[layer_idx](camera_query) + residual_cam
                 camera_query = self.camera_ffn_norm[layer_idx](camera_query)
                 camera_query = self.camera_ffn[layer_idx](camera_query)
             else:
-                residual_fuse = fuse_query
                 fuse_query = self.lidar_camera_fuse_layer[layer_idx](torch.cat([fuse_query, camera_query], dim=-1))
-                # residual_cam = camera_query
-                fuse_query = self.norm_fusion_fuse[layer_idx](fuse_query + residual_fuse)
+                residual_cam = camera_query
+                fuse_query = self.norm_fusion_fuse[layer_idx](fuse_query)
                 camera_query = self.lidar_guide_camera_fusion[layer_idx](fuse_query, camera_query)
-                # camera_query = self.dropout[layer_idx](camera_query) + residual_cam
-                camera_query = self.dropout[layer_idx](camera_query)
+                camera_query = self.dropout[layer_idx](camera_query) + residual_cam
                 camera_query = self.norm_fusion_camera[layer_idx](camera_query)
                 camera_query = self.camera_ffn[layer_idx](camera_query)
                 camera_query = self.camera_ffn_norm[layer_idx](camera_query)

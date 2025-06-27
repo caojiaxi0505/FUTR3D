@@ -119,7 +119,7 @@ class FUTR3DAttention(BaseModule):
 
         if self.fused_embed > embed_dims:
             self.fused_embed += embed_dims
-            self.fused_embed += embed_dims
+            # self.fused_embed += embed_dims
             self.modality_fusion_layer = nn.Sequential(
                 nn.Linear(self.fused_embed, self.embed_dims),
                 nn.LayerNorm(self.embed_dims),
@@ -128,8 +128,11 @@ class FUTR3DAttention(BaseModule):
                 nn.LayerNorm(self.embed_dims),
             )
         self.init_weights()
-        # self.camera_mixer = LidarCameraFusionMambaBlockV4(num_layer=2, d_model=256, d_state=32)
-        self.camera_mixer = LidarCameraFusionMambaBlockV2(num_layer=2,layer_type='fusion_v2',d_model=256)
+        # self.camera_mixer = LidarCameraFusionMambaBlockV4(num_layer=2, d_model=256, d_state=32, prenorm=True)
+        self.camera_mixer = LidarCameraFusionMambaBlockV4(num_layer=2, d_model=256, d_state=32, prenorm=False)
+        # self.camera_mixer = LidarCameraFusionMambaBlockV2(num_layer=2,layer_type='fusion_v2',d_model=256)
+        # self.camera_mixer = LidarCameraFusionMambaBlock(num_layer=2, layer_type='fusion_v2', d_model=256)
+
 
     def init_weights(self):
         device = next(self.parameters()).device
@@ -314,11 +317,11 @@ class FUTR3DAttention(BaseModule):
             output = torch.cat((img_output, pts_output, radar_output), dim=2)
             output = self.modality_fusion_layer(output)
         elif self.use_lidar and self.use_camera:
-            # img_output_processed = self.camera_mixer(pts_output, img_output)
-            pts_output_processed, img_output_processed = self.camera_mixer(pts_output, img_output, reference_points_3d)
+            img_output_processed = self.camera_mixer(pts_output, img_output)
+            # pts_output_processed, img_output_processed = self.camera_mixer(pts_output, img_output)
             # output = torch.cat((img_output, pts_output), dim=2)
-            # output = torch.cat((img_output_processed, img_output, pts_output), dim=2)
-            output = torch.cat((img_output_processed, img_output, pts_output_processed, pts_output), dim=2)
+            output = torch.cat((img_output_processed, img_output, pts_output), dim=2)
+            # output = torch.cat((img_output_processed, img_output, pts_output_processed, pts_output), dim=2)
             output = self.modality_fusion_layer(output)
         elif self.use_camera and self.use_radar:
             output = torch.cat((img_output, radar_output), dim=2)
