@@ -184,6 +184,9 @@ model = dict(
                             use_radar=False,
                             pc_range=point_cloud_range,
                             embed_dims=256,
+                            use_mamba_fuse=True,
+                            mamba_fuse_style='add',
+                            mamba_fuse_mod = 3,
                         ),
                     ],
                     feedforward_channels=1024,
@@ -420,14 +423,14 @@ eval_pipeline = [
 #     ),
 # )
 data = dict(
-    samples_per_gpu=1,
+    samples_per_gpu=2,
     workers_per_gpu=4,
     train=dict(
         # type='CBGSDataset',
         # dataset=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root + "nuscenes_infos_train.pkl",
+        ann_file=data_root + "nuscenes_infos_trainval.pkl",
         pipeline=train_pipeline,
         classes=class_names,
         modality=input_modality,
@@ -451,7 +454,7 @@ data = dict(
         modality=input_modality,
     ),
 )
-evaluation = dict(interval=1)
+# evaluation = dict(interval=1)
 find_unused_parameters = True
 # custom_hooks = [dict(type="FadeOjectSampleHook", num_last_epochs=5)]
 runner = dict(type="EpochBasedRunner", max_epochs=6)
@@ -478,4 +481,5 @@ lr_config = dict(
     min_lr_ratio=1e-3,
 )
 checkpoint_config = dict(interval=1, max_keep_ckpts=10)
-load_from = "pretrained/fuse.pth"
+load_from = "pretrained/detr3d_vovnet_trainval-epoch_20-convert.pth"
+cudnn_benchmark = True

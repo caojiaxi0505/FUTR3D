@@ -587,14 +587,14 @@ class DSS(nn.Module):
         ])
         self.use_rope = use_rope
         if self.use_rope:
-            rope_dim = int(d_model * rope_fraction)
+            rope_dim = int(d_model * rope_fraction) # 默认1/2 d_model
             if rope_dim % 2 != 0:
                 rope_dim -= 1
             if rope_dim > 0:
                 self.rope = RotaryEmbedding(
                     dim=rope_dim,
                     max_seq_len=rope_max_seq_len,
-                    base=rope_base,
+                    base=rope_base, # 默认10000
                     **factory_kwargs
                 )
             else:

@@ -184,6 +184,9 @@ model = dict(
                             use_radar=False,
                             pc_range=point_cloud_range,
                             embed_dims=256,
+                            use_mamba_fuse=True,
+                            mamba_fuse_style='concat',
+                            mamba_fuse_mod = 3,
                         ),
                     ],
                     feedforward_channels=1024,
@@ -451,7 +454,7 @@ data = dict(
         modality=input_modality,
     ),
 )
-evaluation = dict(interval=1)
+# evaluation = dict(interval=1)
 find_unused_parameters = True
 # custom_hooks = [dict(type="FadeOjectSampleHook", num_last_epochs=5)]
 runner = dict(type="EpochBasedRunner", max_epochs=6)
@@ -478,4 +481,5 @@ lr_config = dict(
     min_lr_ratio=1e-3,
 )
 checkpoint_config = dict(interval=1, max_keep_ckpts=10)
-load_from = "pretrained/fuse_forced.pth"
+load_from = "pretrained/detr3d_vovnet_trainval-epoch_20-convert.pth"
+cudnn_benchmark = True

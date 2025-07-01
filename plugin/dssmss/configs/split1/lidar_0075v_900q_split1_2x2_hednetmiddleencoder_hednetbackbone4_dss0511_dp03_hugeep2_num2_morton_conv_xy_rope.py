@@ -311,12 +311,12 @@ test_pipeline = [
     dict(
         type="MultiScaleFlipAug3D",
         img_scale=(1333, 800),
-        # pts_scale_ratio=1,
-        pts_scale_ratio=[1.,1.06,0.96],
-        # flip=False,
-        flip=True,
-        pcd_horizontal_flip=True,
-        pcd_vertical_flip=True,
+        pts_scale_ratio=1,
+        # pts_scale_ratio=[1.,1.06,0.96],
+        flip=False,
+        # flip=True,
+        # pcd_horizontal_flip=True,
+        # pcd_vertical_flip=True,
         transforms=[
             dict(
                 type="GlobalRotScaleTrans",
@@ -356,7 +356,7 @@ data = dict(
     test=dict(
         pipeline=test_pipeline,
         classes=class_names,
-        ann_file=data_root + "nuscenes_infos_test.pkl",
+        ann_file=data_root + "nuscenes_infos_val.pkl",
     ),
 )
 evaluation = dict(interval=1)
